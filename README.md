@@ -1,6 +1,6 @@
-# ProjectTerra 🌍✨
+# ProjectTera 🌍✨
 
-ProjectTerra is a custom toy programming language and compiler/interpreter toolchain built from scratch using **TypeScript**. It features a full pipeline including lexical analysis, custom Abstract Syntax Tree (AST) definitions, a static type checker, and a tree-walk interpreter!
+ProjectTera is a custom toy programming language and compiler/interpreter toolchain built from scratch using **TypeScript**. It features a full pipeline including lexical analysis, custom Abstract Syntax Tree (AST) definitions, a static type checker, and a tree-walk interpreter!
 
 ---
 
