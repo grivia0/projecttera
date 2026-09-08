@@ -1,6 +1,6 @@
 # ProjectTera 🌍✨
 
-ProjectTera is a custom toy programming language and compiler/interpreter toolchain built from scratch using **TypeScript**. It features a full pipeline including lexical analysis, custom Abstract Syntax Tree (AST) definitions, a static type checker, and a tree-walk interpreter!
+ProjectTera is a small statically typed interpreted programming language and compiler/interpreter toolchain built from scratch using **TypeScript**. It features a full pipeline including lexical analysis, custom Abstract Syntax Tree (AST) definitions, a static type checker, and a tree-walk interpreter!
 
 ---
 
@@ -32,7 +32,7 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 ### Installation & Setup
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/ProjectTerra.git](https://github.com/YOUR_USERNAME/ProjectTerra.git)
+   git clone [https://github.com/grivia0/projecttera.git](https://github.com/grivia0/projecttera.git)
    cd ProjectTerra
 2. Install dependencies:
     ```bash
