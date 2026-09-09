@@ -162,7 +162,6 @@ export class Interpreter {
             if (caseNode.test === null || matched || this.evaluate(caseNode.test, env) === value) {
                 matched = true;
                 const caseEnv = new Environment(env);
-                let brokeOut = false;
                 for (const stmt of caseNode.consequent) {
                     this.execute(stmt, caseEnv);
                 }
@@ -219,6 +218,8 @@ export class Interpreter {
             }
             case "BinaryExpr":
                 return this.evaluateBinary(expr.left, expr.operator, expr.right, env);
+            case "UnaryExpr":
+                return this.evaluateUnary(expr.operator, expr.right, env);
             case "CallExpr": {
                 const callee = this.evaluate(expr.callee, env);
                 const args = expr.arguments.map((arg) => this.evaluate(arg, env));
@@ -237,12 +238,29 @@ export class Interpreter {
         switch (op) {
             case "+": return left + right;
             case "-": return left - right;
+            case "*": return left * right;
+            case "/": return left / right;
+            case "%": return left % right;
+            case "**": return left ** right;
             case ">": return left > right;
             case "<": return left < right;
+            case ">=": return left >= right;
+            case "<=": return left <= right;
             case "==": return left == right;
+            case "!=": return left != right;
             case "===": return left === right;
             default:
                 throw new Error(`[Runtime Error] Unsupported operator: ${op}`);
+        }
+    }
+    evaluateUnary(op, rightExpr, env) {
+        const right = this.evaluate(rightExpr, env);
+        switch (op) {
+            case "-": return -right;
+            case "+": return +right;
+            case "!": return !right;
+            default:
+                throw new Error(`[Runtime Error] Unsupported unary operator: ${op}`);
         }
     }
 }

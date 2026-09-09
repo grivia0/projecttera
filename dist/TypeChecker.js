@@ -183,6 +183,8 @@ export class TypeChecker {
                 return env.lookup(expr.name);
             case "BinaryExpr":
                 return this.inferBinaryExprType(expr, env);
+            case "UnaryExpr":
+                return this.inferUnaryExprType(expr, env);
             case "CallExpr":
                 return this.inferCallExprType(expr, env);
             case "ArrayLiteral":
@@ -243,7 +245,7 @@ export class TypeChecker {
     inferBinaryExprType(node, env) {
         const leftType = this.inferExpressionType(node.left, env);
         const rightType = this.inferExpressionType(node.right, env);
-        if (["+", "-", "*", "/", "%"].includes(node.operator)) {
+        if (["+", "-", "*", "/", "%", "**"].includes(node.operator)) {
             if (leftType === "int" && rightType === "int")
                 return "int";
             if (node.operator === "+" && leftType === "string" && rightType === "string")
@@ -257,6 +259,15 @@ export class TypeChecker {
             return "boolean";
         }
         throw new TypeError(`Unsupported binary operator '${node.operator}'.`);
+    }
+    inferUnaryExprType(node, env) {
+        const rightType = this.inferExpressionType(node.right, env);
+        if (node.operator === "-" || node.operator === "+") {
+            if (rightType === "int" || rightType === "float") {
+                return rightType;
+            }
+        }
+        throw new TypeError(`Unary operator '${node.operator}' cannot be applied to type '${rightType}'.`);
     }
     inferCallExprType(node, env) {
         const calleeType = this.inferExpressionType(node.callee, env);

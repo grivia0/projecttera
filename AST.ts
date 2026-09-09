@@ -76,6 +76,7 @@ export type ExpressionNode =
   | LiteralNode
   | IdentifierNode
   | BinaryExprNode
+  | UnaryExprNode // Add this line, meow!
   | MemberExprNode
   | CallExprNode
   | AssignmentExprNode
@@ -96,6 +97,12 @@ export interface IdentifierNode extends ASTNode {
 export interface BinaryExprNode extends ASTNode {
   type: "BinaryExpr";
   left: ExpressionNode;
+  operator: string;
+  right: ExpressionNode;
+}
+
+export interface UnaryExprNode extends ASTNode {
+  type: "UnaryExpr";
   operator: string;
   right: ExpressionNode;
 }

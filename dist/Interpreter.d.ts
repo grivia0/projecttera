@@ -20,5 +20,6 @@ export declare class Interpreter {
     private executeSwitchStatement;
     private evaluate;
     private evaluateBinary;
+    private evaluateUnary;
 }
 //# sourceMappingURL=Interpreter.d.ts.map

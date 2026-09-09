@@ -31,7 +31,6 @@ export class Parser {
         const nameToken = this.consume(TokenType.IDENTIFIER, "Expected variable name.");
         let value = undefined;
         let targetType = undefined;
-        // Syntax: let <identifier>: <expression> => <type> OR let <identifier>: <type>
         if (this.match(TokenType.COLON)) {
             if (this.checkTypeAnnotation()) {
                 targetType = this.parseTypeAnnotation();
@@ -236,6 +235,32 @@ export class Parser {
         return expr;
     }
     factor() {
+        let expr = this.exponentiation();
+        while (this.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
+            const operator = this.previous().lexeme;
+            const right = this.exponentiation();
+            expr = { type: "BinaryExpr", left: expr, operator, right };
+        }
+        return expr;
+    }
+    exponentiation() {
+        let expr = this.unary();
+        while (this.match(TokenType.STAR_STAR)) {
+            const operator = this.previous().lexeme;
+            const right = this.exponentiation(); // Right-associative for **
+            expr = { type: "BinaryExpr", left: expr, operator, right };
+        }
+        return expr;
+    }
+    unary() {
+        if (this.match(TokenType.MINUS, TokenType.PLUS)) {
+            const operator = this.previous().lexeme;
+            const right = this.unary();
+            return { type: "UnaryExpr", operator, right };
+        }
+        return this.call();
+    }
+    call() {
         let expr = this.primary();
         while (true) {
             if (this.match(TokenType.DOT)) {

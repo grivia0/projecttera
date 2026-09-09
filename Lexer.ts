@@ -46,43 +46,53 @@ export class Lexer {
     const c = this.advance();
 
     switch (c) {
-  case ":": this.addToken(TokenType.COLON); break;
-  case "(": this.addToken(TokenType.LPAREN); break;
-  case ")": this.addToken(TokenType.RPAREN); break;
-  case "{": this.addToken(TokenType.LBRACE); break;
-  case "}": this.addToken(TokenType.RBRACE); break;
-  case "[": this.addToken(TokenType.LBRACKET); break;
-  case "]": this.addToken(TokenType.RBRACKET); break;
-  case ",": this.addToken(TokenType.COMMA); break;
-  case ";": this.addToken(TokenType.SEMICOLON); break;
-  case ".": this.addToken(TokenType.DOT); break;
-  case "`": this.addToken(TokenType.BACKTICK); break;
-  case "+": this.addToken(TokenType.PLUS); break;
-  case "-": this.addToken(TokenType.MINUS); break;
-  case "*": this.addToken(TokenType.STAR); break;
+      case ":": this.addToken(TokenType.COLON); break;
+      case "(": this.addToken(TokenType.LPAREN); break;
+      case ")": this.addToken(TokenType.RPAREN); break;
+      case "{": this.addToken(TokenType.LBRACE); break;
+      case "}": this.addToken(TokenType.RBRACE); break;
+      case "[": this.addToken(TokenType.LBRACKET); break;
+      case "]": this.addToken(TokenType.RBRACKET); break;
+      case ",": this.addToken(TokenType.COMMA); break;
+      case ";": this.addToken(TokenType.SEMICOLON); break;
+      case ".": this.addToken(TokenType.DOT); break;
+      case "`": this.addToken(TokenType.BACKTICK); break;
+      
+      // --- Full Arithmetic Operators Support, meow! ---
+      case "+": 
+        this.addToken(this.match("+") ? TokenType.PLUS_PLUS : TokenType.PLUS); 
+        break;
+      case "-": 
+        this.addToken(this.match("-") ? TokenType.MINUS_MINUS : TokenType.MINUS); 
+        break;
+      case "*": 
+        this.addToken(this.match("*") ? TokenType.STAR_STAR : TokenType.STAR); 
+        break;
+      case "%": 
+        this.addToken(TokenType.PERCENT); 
+        break;
+      // ------------------------------------------------
 
-  // --- ADD THESE TWO CASES ---
-  case ">":
-    this.addToken(this.match("=") ? TokenType.GREATER : TokenType.GREATER); // Add GREATER_EQUAL if needed later
-    break;
-  case "<":
-    this.addToken(this.match("=") ? TokenType.LESS : TokenType.LESS); // Add LESS_EQUAL if needed later
-    break;
-  // ---------------------------
+      case ">":
+        this.addToken(this.match("=") ? TokenType.GREATER : TokenType.GREATER); 
+        break;
+      case "<":
+        this.addToken(this.match("=") ? TokenType.LESS : TokenType.LESS); 
+        break;
 
-  case "=":
-    if (this.match(">")) {
-      this.addToken(TokenType.ARROW); // =>
-    } else if (this.match("=")) {
-      if (this.match("=")) {
-        this.addToken(TokenType.STRICT_EQUALS); // ===
-      } else {
-        this.addToken(TokenType.EQUALS); // ==
-      }
-    } else {
-      this.addToken(TokenType.ASSIGN); // =
-    }
-    break;
+      case "=":
+        if (this.match(">")) {
+          this.addToken(TokenType.ARROW); // =>
+        } else if (this.match("=")) {
+          if (this.match("=")) {
+            this.addToken(TokenType.STRICT_EQUALS); // ===
+          } else {
+            this.addToken(TokenType.EQUALS); // ==
+          }
+        } else {
+          this.addToken(TokenType.ASSIGN); // =
+        }
+        break;
 
       case "/":
         if (this.match("/")) {
@@ -97,7 +107,7 @@ export class Lexer {
           this.advance(); // consume '*'
           this.advance(); // consume '/'
         } else {
-          this.addToken(TokenType.SLASH);
+          this.addToken(TokenType.SLASH); // Division operator, meow!
         }
         break;
 

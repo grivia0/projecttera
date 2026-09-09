@@ -20,6 +20,9 @@ export declare class Parser {
     private comparison;
     private term;
     private factor;
+    private exponentiation;
+    private unary;
+    private call;
     private primary;
     private checkTypeAnnotation;
     private parseTypeAnnotation;

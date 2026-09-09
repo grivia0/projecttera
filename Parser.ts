@@ -43,7 +43,6 @@ export class Parser {
     let value: ExpressionNode | undefined = undefined;
     let targetType: string | undefined = undefined;
 
-    // Syntax: let <identifier>: <expression> => <type> OR let <identifier>: <type>
     if (this.match(TokenType.COLON)) {
       if (this.checkTypeAnnotation()) {
         targetType = this.parseTypeAnnotation();
@@ -281,6 +280,40 @@ export class Parser {
   }
 
   private factor(): ExpressionNode {
+    let expr = this.exponentiation();
+
+    while (this.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
+      const operator = this.previous().lexeme;
+      const right = this.exponentiation();
+      expr = { type: "BinaryExpr", left: expr, operator, right };
+    }
+
+    return expr;
+  }
+
+  private exponentiation(): ExpressionNode {
+    let expr = this.unary();
+
+    while (this.match(TokenType.STAR_STAR)) {
+      const operator = this.previous().lexeme;
+      const right = this.exponentiation(); // Right-associative for **
+      expr = { type: "BinaryExpr", left: expr, operator, right };
+    }
+
+    return expr;
+  }
+
+  private unary(): ExpressionNode {
+    if (this.match(TokenType.MINUS, TokenType.PLUS)) {
+      const operator = this.previous().lexeme;
+      const right = this.unary();
+      return { type: "UnaryExpr", operator, right };
+    }
+
+    return this.call();
+  }
+
+  private call(): ExpressionNode {
     let expr = this.primary();
 
     while (true) {

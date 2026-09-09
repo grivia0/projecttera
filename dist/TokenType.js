@@ -30,9 +30,13 @@ export var TokenType;
     TokenType["EQUALS"] = "EQUALS";
     TokenType["STRICT_EQUALS"] = "STRICT_EQUALS";
     TokenType["PLUS"] = "PLUS";
+    TokenType["PLUS_PLUS"] = "PLUS_PLUS";
     TokenType["MINUS"] = "MINUS";
+    TokenType["MINUS_MINUS"] = "MINUS_MINUS";
     TokenType["STAR"] = "STAR";
+    TokenType["STAR_STAR"] = "STAR_STAR";
     TokenType["SLASH"] = "SLASH";
+    TokenType["PERCENT"] = "PERCENT";
     TokenType["GREATER"] = "GREATER";
     TokenType["LESS"] = "LESS";
     // Delimiters

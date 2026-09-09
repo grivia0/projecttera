@@ -72,23 +72,26 @@ export class Lexer {
             case "`":
                 this.addToken(TokenType.BACKTICK);
                 break;
+            // --- Full Arithmetic Operators Support, meow! ---
             case "+":
-                this.addToken(TokenType.PLUS);
+                this.addToken(this.match("+") ? TokenType.PLUS_PLUS : TokenType.PLUS);
                 break;
             case "-":
-                this.addToken(TokenType.MINUS);
+                this.addToken(this.match("-") ? TokenType.MINUS_MINUS : TokenType.MINUS);
                 break;
             case "*":
-                this.addToken(TokenType.STAR);
+                this.addToken(this.match("*") ? TokenType.STAR_STAR : TokenType.STAR);
                 break;
-            // --- ADD THESE TWO CASES ---
+            case "%":
+                this.addToken(TokenType.PERCENT);
+                break;
+            // ------------------------------------------------
             case ">":
-                this.addToken(this.match("=") ? TokenType.GREATER : TokenType.GREATER); // Add GREATER_EQUAL if needed later
+                this.addToken(this.match("=") ? TokenType.GREATER : TokenType.GREATER);
                 break;
             case "<":
-                this.addToken(this.match("=") ? TokenType.LESS : TokenType.LESS); // Add LESS_EQUAL if needed later
+                this.addToken(this.match("=") ? TokenType.LESS : TokenType.LESS);
                 break;
-            // ---------------------------
             case "=":
                 if (this.match(">")) {
                     this.addToken(TokenType.ARROW); // =>
@@ -122,7 +125,7 @@ export class Lexer {
                     this.advance(); // consume '/'
                 }
                 else {
-                    this.addToken(TokenType.SLASH);
+                    this.addToken(TokenType.SLASH); // Division operator, meow!
                 }
                 break;
             case " ":

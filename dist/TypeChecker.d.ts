@@ -19,6 +19,7 @@ export declare class TypeChecker {
     private inferMemberExprType;
     private inferLiteralType;
     private inferBinaryExprType;
+    private inferUnaryExprType;
     private inferCallExprType;
     private inferArrayLiteralType;
     private inferIndexAccessType;

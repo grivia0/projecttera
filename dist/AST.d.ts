@@ -53,7 +53,7 @@ export interface ExpressionStatementNode extends ASTNode {
     type: "ExpressionStatement";
     expression: ExpressionNode;
 }
-export type ExpressionNode = LiteralNode | IdentifierNode | BinaryExprNode | MemberExprNode | CallExprNode | AssignmentExprNode | ArrayLiteralNode | IndexAccessNode;
+export type ExpressionNode = LiteralNode | IdentifierNode | BinaryExprNode | UnaryExprNode | MemberExprNode | CallExprNode | AssignmentExprNode | ArrayLiteralNode | IndexAccessNode;
 export interface LiteralNode extends ASTNode {
     type: "Literal";
     value: any;
@@ -66,6 +66,11 @@ export interface IdentifierNode extends ASTNode {
 export interface BinaryExprNode extends ASTNode {
     type: "BinaryExpr";
     left: ExpressionNode;
+    operator: string;
+    right: ExpressionNode;
+}
+export interface UnaryExprNode extends ASTNode {
+    type: "UnaryExpr";
     operator: string;
     right: ExpressionNode;
 }

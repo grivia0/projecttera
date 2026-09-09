@@ -25,16 +25,20 @@ export enum TokenType {
   BOOLEAN = "BOOLEAN",
   UNDEFINED = "UNDEFINED",
 
-  // Operators
+// Operators
   COLON = "COLON",           // :
   ARROW = "ARROW",           // =>
   ASSIGN = "ASSIGN",         // =
   EQUALS = "EQUALS",         // ==
   STRICT_EQUALS = "STRICT_EQUALS", // ===
   PLUS = "PLUS",             // +
+  PLUS_PLUS = "PLUS_PLUS",     // ++
   MINUS = "MINUS",           // -
+  MINUS_MINUS = "MINUS_MINUS", // --
   STAR = "STAR",             // *
+  STAR_STAR = "STAR_STAR",     // **
   SLASH = "SLASH",           // /
+  PERCENT = "PERCENT",       // %
   GREATER = "GREATER",       // >
   LESS = "LESS",             // <
 
