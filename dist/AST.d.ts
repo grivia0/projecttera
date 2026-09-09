@@ -73,6 +73,7 @@ export interface UnaryExprNode extends ASTNode {
     type: "UnaryExpr";
     operator: string;
     right: ExpressionNode;
+    isPostfix?: boolean;
 }
 export interface CallExprNode extends ASTNode {
     type: "CallExpr";

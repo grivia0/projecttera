@@ -313,7 +313,7 @@ export class TypeChecker {
 
   private inferUnaryExprType(node: UnaryExprNode, env: TypeEnvironment): TeraType {
     const rightType = this.inferExpressionType(node.right, env);
-    if (node.operator === "-" || node.operator === "+") {
+    if (["-", "+", "++", "--"].includes(node.operator)) {
       if (rightType === "int" || rightType === "float") {
         return rightType;
       }

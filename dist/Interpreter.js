@@ -219,7 +219,7 @@ export class Interpreter {
             case "BinaryExpr":
                 return this.evaluateBinary(expr.left, expr.operator, expr.right, env);
             case "UnaryExpr":
-                return this.evaluateUnary(expr.operator, expr.right, env);
+                return this.evaluateUnary(expr.operator, expr.right, env, expr.isPostfix);
             case "CallExpr": {
                 const callee = this.evaluate(expr.callee, env);
                 const args = expr.arguments.map((arg) => this.evaluate(arg, env));
@@ -253,7 +253,29 @@ export class Interpreter {
                 throw new Error(`[Runtime Error] Unsupported operator: ${op}`);
         }
     }
-    evaluateUnary(op, rightExpr, env) {
+    evaluateUnary(op, rightExpr, env, isPostfix) {
+        if (op === "++" || op === "--") {
+            if (rightExpr.type !== "Identifier" && rightExpr.type !== "IndexAccess" && rightExpr.type !== "MemberExpr") {
+                throw new Error(`[Runtime Error] Invalid target for increment/decrement`);
+            }
+            const currentValue = this.evaluate(rightExpr, env);
+            const newValue = op === "++" ? currentValue + 1 : currentValue - 1;
+            // Mutate the variable or container target in-place
+            if (rightExpr.type === "Identifier") {
+                env.assign(rightExpr.name, newValue);
+            }
+            else if (rightExpr.type === "IndexAccess") {
+                const targetObj = this.evaluate(rightExpr.object, env);
+                const indexVal = this.evaluate(rightExpr.index, env);
+                targetObj[indexVal] = newValue;
+            }
+            else if (rightExpr.type === "MemberExpr") {
+                const targetObj = this.evaluate(rightExpr.object, env);
+                targetObj[rightExpr.property] = newValue;
+            }
+            // Postfix (x++) returns old value; Prefix (++x) returns new value
+            return isPostfix ? currentValue : newValue;
+        }
         const right = this.evaluate(rightExpr, env);
         switch (op) {
             case "-": return -right;

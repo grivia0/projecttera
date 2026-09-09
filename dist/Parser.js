@@ -253,10 +253,10 @@ export class Parser {
         return expr;
     }
     unary() {
-        if (this.match(TokenType.MINUS, TokenType.PLUS)) {
+        if (this.match(TokenType.MINUS, TokenType.PLUS, TokenType.PLUS_PLUS, TokenType.MINUS_MINUS)) {
             const operator = this.previous().lexeme;
             const right = this.unary();
-            return { type: "UnaryExpr", operator, right };
+            return { type: "UnaryExpr", operator, right, isPostfix: false };
         }
         return this.call();
     }
@@ -281,6 +281,13 @@ export class Parser {
                 const index = this.expression();
                 this.consume(TokenType.RBRACKET, "Expected ']' after index.");
                 expr = { type: "IndexAccess", object: expr, index };
+            }
+            else if (this.match(TokenType.PLUS_PLUS, TokenType.MINUS_MINUS)) {
+                const operator = this.previous().lexeme;
+                if (expr.type !== "Identifier" && expr.type !== "MemberExpr" && expr.type !== "IndexAccess") {
+                    throw new Error(`[Parser Error] Invalid target for increment/decrement.`);
+                }
+                expr = { type: "UnaryExpr", operator, right: expr, isPostfix: true };
             }
             else {
                 break;

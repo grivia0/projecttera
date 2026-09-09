@@ -105,6 +105,7 @@ export interface UnaryExprNode extends ASTNode {
   type: "UnaryExpr";
   operator: string;
   right: ExpressionNode;
+  isPostfix?: boolean; // true if postfix (x++), false/undefined if prefix (++x)
 }
 
 export interface CallExprNode extends ASTNode {

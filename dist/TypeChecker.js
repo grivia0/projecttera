@@ -262,7 +262,7 @@ export class TypeChecker {
     }
     inferUnaryExprType(node, env) {
         const rightType = this.inferExpressionType(node.right, env);
-        if (node.operator === "-" || node.operator === "+") {
+        if (["-", "+", "++", "--"].includes(node.operator)) {
             if (rightType === "int" || rightType === "float") {
                 return rightType;
             }
