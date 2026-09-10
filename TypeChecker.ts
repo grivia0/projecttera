@@ -272,7 +272,10 @@ export class TypeChecker {
     const objectType = this.inferExpressionType(node.object, env);
 
     if (objectType.startsWith("arr[")) {
+      const elemType = objectType.slice(4, -1);
       if (node.property === "leng") return "int";
+      if (node.property === "isEmpty") return "boolean";
+      if (node.property === "first" || node.property === "last") return elemType;
       if ([
         "asString",
         "at",
@@ -293,6 +296,8 @@ export class TypeChecker {
 
     if (objectType === "string") {
       if (node.property === "leng") return "int";
+      if (node.property === "isEmpty") return "boolean";
+      if (node.property === "first" || node.property === "last") return "string";
     }
 
     return "undefined";
@@ -353,6 +358,27 @@ export class TypeChecker {
 
     for (const arg of node.arguments) {
       this.inferExpressionType(arg, env);
+    }
+
+    // Infer return types for built-in array methods, meow! 🐾
+    if (node.callee.type === "MemberExpr") {
+      const memberExpr = node.callee;
+      const objectType = this.inferExpressionType(memberExpr.object, env);
+      const prop = memberExpr.property;
+
+      if (objectType.startsWith("arr[")) {
+        const elemType = objectType.slice(4, -1);
+
+        if (["copyIn", "merge", "flat", "slice", "splice"].includes(prop)) {
+          return objectType;
+        }
+        if (["at", "rmv", "shift", "rmShift"].includes(prop)) {
+          return elemType;
+        }
+        if (["asString", "join"].includes(prop)) {
+          return "string";
+        }
+      }
     }
 
     return "undefined";

@@ -1,4 +1,4 @@
-# ProjectTera 🌍✨
+# ProjectTera 
 
 ProjectTera is a small statically typed interpreted programming language and compiler/interpreter toolchain built from scratch using **TypeScript**. It features a full pipeline including lexical analysis, custom Abstract Syntax Tree (AST) definitions, a static type checker, and a tree-walk interpreter!
 

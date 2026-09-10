@@ -203,6 +203,12 @@ export class Interpreter {
                 if (Array.isArray(obj)) {
                     if (prop === "leng")
                         return obj.length;
+                    if (prop === "isEmpty")
+                        return obj.length === 0;
+                    if (prop === "first")
+                        return obj[0];
+                    if (prop === "last")
+                        return obj.length > 0 ? obj[obj.length - 1] : undefined;
                     if (prop === "asString")
                         return () => obj.toString();
                     if (prop === "at")
@@ -231,6 +237,12 @@ export class Interpreter {
                 if (typeof obj === "string") {
                     if (prop === "leng")
                         return obj.length;
+                    if (prop === "isEmpty")
+                        return obj.length === 0;
+                    if (prop === "first")
+                        return obj[0];
+                    if (prop === "last")
+                        return obj.length > 0 ? obj[obj.length - 1] : undefined;
                 }
                 return obj ? obj[prop] : undefined;
             }
