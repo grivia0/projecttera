@@ -4,7 +4,7 @@ ProjectTera is a small statically typed interpreted programming language and com
 
 ---
 
-## 🚀 Features
+##  Features
 
 * **Lexer & Parser:** Tokenizes source code into a robust AST supporting expressions, statements, control flow, and functions.
 * **Static Type Checker:** Enforces strict type safety (`int`, `string`, `boolean`, custom array types, etc.) with lexical scope management.
@@ -13,7 +13,7 @@ ProjectTera is a small statically typed interpreted programming language and com
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 * `AST.ts` — Defines the Abstract Syntax Tree node structures and expression unions.
 * `Lexer.ts` — Tokenizes the raw source code text.
@@ -24,7 +24,7 @@ ProjectTera is a small statically typed interpreted programming language and com
 
 ---
 
-## 🛠️ Getting Started
+##  Getting Started
 
 ### Prerequisites
 Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
