@@ -14,6 +14,7 @@ export declare class Interpreter {
     interpret(program: ProgramNode): void;
     private execute;
     private executeVarDecl;
+    private executeRemoveStatement;
     private executeFunctionDecl;
     private executeIfStatement;
     private executeWhileStatement;

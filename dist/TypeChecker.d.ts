@@ -12,6 +12,7 @@ export declare class TypeChecker {
     private checkFunctionDecl;
     private checkIfStatement;
     private checkWhileStatement;
+    private checkRemoveStatement;
     private checkSwitchStatement;
     private checkReturnStatement;
     private inferExpressionType;

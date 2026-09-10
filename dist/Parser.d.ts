@@ -6,6 +6,7 @@ export declare class Parser {
     constructor(tokens: Token[]);
     parse(): ProgramNode;
     private statement;
+    private removeStatement;
     private varDeclaration;
     private functionDeclaration;
     private ifStatement;

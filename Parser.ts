@@ -35,7 +35,25 @@ export class Parser {
     if (this.match(TokenType.SWITCH)) return this.switchStatement();
     if (this.match(TokenType.RETURN)) return this.returnStatement();
 
+    // Catch 'rm x[0]' statement, meow! 🐾
+    if (this.check(TokenType.IDENTIFIER) && this.peek().lexeme === "rm") {
+      this.advance(); // consume "rm"
+      return this.removeStatement();
+    }
+
     return this.expressionStatement();
+  }
+
+  private removeStatement(): StatementNode {
+    const target = this.expression();
+    if (target.type !== "IndexAccess") {
+      throw new Error(`[Parser Error] Expected index access expression after 'rm', got '${target.type}'.`);
+    }
+    this.optionalSemicolon();
+    return {
+      type: "RemoveStatement",
+      target,
+    } as any; // Cast or add RemoveStatementNode to AST.ts
   }
 
   private varDeclaration(): VarDeclNode {

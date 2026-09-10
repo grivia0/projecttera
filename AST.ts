@@ -17,6 +17,7 @@ export type StatementNode =
   | WhileStatementNode
   | SwitchStatementNode
   | ExpressionStatementNode
+  | RemoveStatementNode
   | ReturnStatementNode;
 
 export interface VarDeclNode extends ASTNode {
@@ -69,6 +70,11 @@ export interface ReturnStatementNode extends ASTNode {
 export interface ExpressionStatementNode extends ASTNode {
   type: "ExpressionStatement";
   expression: ExpressionNode;
+}
+
+export interface RemoveStatementNode extends ASTNode {
+  type: "RemoveStatement";
+  target: IndexAccessNode;
 }
 
 // Expression Types

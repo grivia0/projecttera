@@ -9,6 +9,7 @@ import type {
   FunctionDeclNode,
   MemberExprNode,
   AssignmentExprNode,
+  RemoveStatementNode,
   UnaryExprNode,
 } from "./AST.js";
 
@@ -102,6 +103,9 @@ export class Interpreter {
       case "ExpressionStatement":
         this.evaluate(stmt.expression, env);
         break;
+      case "RemoveStatement": // <--- Add this, nya!
+        this.executeRemoveStatement(stmt as any, env);
+        break;
       default:
         throw new Error(`[Runtime Error] Unknown statement type: ${(stmt as any).type}`);
     }
@@ -110,6 +114,18 @@ export class Interpreter {
   private executeVarDecl(node: VarDeclNode, env: Environment): void {
     const value = node.value ? this.evaluate(node.value, env) : undefined;
     env.define(node.identifier, value);
+  }
+
+  private executeRemoveStatement(node: { target: ExpressionNode }, env: Environment): void {
+    if (node.target.type !== "IndexAccess") {
+      throw new Error(`[Runtime Error] Target of 'rm' statement must be an index access.`);
+    }
+    const targetObj = this.evaluate(node.target.object, env);
+    const indexVal = this.evaluate(node.target.index, env);
+    if (!Array.isArray(targetObj)) {
+      throw new Error(`[Runtime Error] Cannot remove element from non-array target.`);
+    }
+    targetObj.splice(indexVal, 1);
   }
 
   private executeFunctionDecl(node: FunctionDeclNode, env: Environment): void {
@@ -204,14 +220,30 @@ export class Interpreter {
       }
       case "MemberExpr": {
         const obj = this.evaluate(expr.object, env);
+        const prop = expr.property;
+
         if (Array.isArray(obj)) {
-          if (expr.property === "length") return obj.length;
-          if (expr.property === "push") return (...args: any[]) => obj.push(...args);
+          if (prop === "leng") return obj.length;
+          if (prop === "asString") return () => obj.toString();
+          if (prop === "at") return (idx: number) => obj.at(idx);
+          if (prop === "join") return (sep: string = ",") => obj.join(sep);
+          if (prop === "rmv") return (idx: number) => obj.splice(idx, 1)[0];
+          if (prop === "push") return (...args: any[]) => obj.push(...args);
+          if (prop === "shift") return () => obj.shift();
+          if (prop === "rmShift") return () => obj.shift();
+          if (prop === "merge") return (other: any[]) => obj.concat(other);
+          if (prop === "copyIn") return (other: any[]) => [...obj, ...other];
+          if (prop === "flat") return () => obj.flat();
+          if (prop === "slice") return (start: number, end?: number) => obj.slice(start, end);
+          if (prop === "splice") return (start: number, deleteCount?: number, ...items: any[]) => 
+            deleteCount === undefined ? obj.splice(start) : obj.splice(start, deleteCount, ...items);
         }
+
         if (typeof obj === "string") {
-          if (expr.property === "length") return obj.length;
+          if (prop === "leng") return obj.length;
         }
-        return obj ? obj[expr.property] : undefined;
+
+        return obj ? obj[prop] : undefined;
       }
       case "AssignmentExpr": {
         const value = this.evaluate(expr.value, env);

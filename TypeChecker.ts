@@ -19,6 +19,7 @@ import type {
   IndexAccessNode,
   MemberExprNode,
   AssignmentExprNode,
+  RemoveStatementNode,
 } from "./AST.js";
 
 // Type definitions used within the static environment
@@ -113,6 +114,9 @@ export class TypeChecker {
       case "ExpressionStatement":
         this.inferExpressionType(stmt.expression, env);
         break;
+      case "RemoveStatement": // <--- Handle the RemoveStatement node directly!
+        this.checkRemoveStatement(stmt as any, env);
+        break;
       default:
         throw new TypeError(`Unknown statement type: ${(stmt as ASTNode).type}`);
     }
@@ -193,6 +197,11 @@ export class TypeChecker {
     }
   }
 
+  private checkRemoveStatement(node: RemoveStatementNode, env: TypeEnvironment): void {
+    // Ensure the index access target is valid and indexable
+    this.inferIndexAccessType(node.target, env);
+  }
+
   private checkSwitchStatement(node: SwitchStatementNode, env: TypeEnvironment): void {
     const discType = this.inferExpressionType(node.discriminant, env);
     for (const c of node.cases) {
@@ -263,12 +272,27 @@ export class TypeChecker {
     const objectType = this.inferExpressionType(node.object, env);
 
     if (objectType.startsWith("arr[")) {
-      if (node.property === "length") return "int";
-      if (node.property === "push") return "function";
+      if (node.property === "leng") return "int";
+      if ([
+        "asString",
+        "at",
+        "join",
+        "rmv",
+        "push",
+        "shift",
+        "rmShift",
+        "merge",
+        "copyIn",
+        "flat",
+        "slice",
+        "splice"
+      ].includes(node.property)) {
+        return "function";
+      }
     }
 
     if (objectType === "string") {
-      if (node.property === "length") return "int";
+      if (node.property === "leng") return "int";
     }
 
     return "undefined";

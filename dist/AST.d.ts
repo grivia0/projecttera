@@ -5,7 +5,7 @@ export interface ProgramNode extends ASTNode {
     type: "Program";
     body: StatementNode[];
 }
-export type StatementNode = VarDeclNode | FunctionDeclNode | IfStatementNode | WhileStatementNode | SwitchStatementNode | ExpressionStatementNode | ReturnStatementNode;
+export type StatementNode = VarDeclNode | FunctionDeclNode | IfStatementNode | WhileStatementNode | SwitchStatementNode | ExpressionStatementNode | RemoveStatementNode | ReturnStatementNode;
 export interface VarDeclNode extends ASTNode {
     type: "VarDecl";
     identifier: string;
@@ -52,6 +52,10 @@ export interface ReturnStatementNode extends ASTNode {
 export interface ExpressionStatementNode extends ASTNode {
     type: "ExpressionStatement";
     expression: ExpressionNode;
+}
+export interface RemoveStatementNode extends ASTNode {
+    type: "RemoveStatement";
+    target: IndexAccessNode;
 }
 export type ExpressionNode = LiteralNode | IdentifierNode | BinaryExprNode | UnaryExprNode | MemberExprNode | CallExprNode | AssignmentExprNode | ArrayLiteralNode | IndexAccessNode;
 export interface LiteralNode extends ASTNode {

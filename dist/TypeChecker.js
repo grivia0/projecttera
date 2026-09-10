@@ -81,6 +81,9 @@ export class TypeChecker {
             case "ExpressionStatement":
                 this.inferExpressionType(stmt.expression, env);
                 break;
+            case "RemoveStatement": // <--- Handle the RemoveStatement node directly!
+                this.checkRemoveStatement(stmt, env);
+                break;
             default:
                 throw new TypeError(`Unknown statement type: ${stmt.type}`);
         }
@@ -155,6 +158,10 @@ export class TypeChecker {
             this.checkStatement(node.body, env);
         }
     }
+    checkRemoveStatement(node, env) {
+        // Ensure the index access target is valid and indexable
+        this.inferIndexAccessType(node.target, env);
+    }
     checkSwitchStatement(node, env) {
         const discType = this.inferExpressionType(node.discriminant, env);
         for (const c of node.cases) {
@@ -219,13 +226,27 @@ export class TypeChecker {
     inferMemberExprType(node, env) {
         const objectType = this.inferExpressionType(node.object, env);
         if (objectType.startsWith("arr[")) {
-            if (node.property === "length")
+            if (node.property === "leng")
                 return "int";
-            if (node.property === "push")
+            if ([
+                "asString",
+                "at",
+                "join",
+                "rmv",
+                "push",
+                "shift",
+                "rmShift",
+                "merge",
+                "copyIn",
+                "flat",
+                "slice",
+                "splice"
+            ].includes(node.property)) {
                 return "function";
+            }
         }
         if (objectType === "string") {
-            if (node.property === "length")
+            if (node.property === "leng")
                 return "int";
         }
         return "undefined";
