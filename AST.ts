@@ -82,11 +82,12 @@ export type ExpressionNode =
   | LiteralNode
   | IdentifierNode
   | BinaryExprNode
-  | UnaryExprNode // Add this line, meow!
+  | UnaryExprNode 
   | MemberExprNode
   | CallExprNode
   | AssignmentExprNode
   | ArrayLiteralNode
+  | FunctionExprNode
   | IndexAccessNode;
 
 export interface LiteralNode extends ASTNode {
@@ -114,6 +115,13 @@ export interface UnaryExprNode extends ASTNode {
   isPostfix?: boolean; // true if postfix (x++), false/undefined if prefix (++x)
 }
 
+export interface FunctionExprNode extends ASTNode {
+  type: "FunctionExpr";
+  params: { name: string; paramType: string }[];
+  returnType?: string | undefined;
+  body: StatementNode[] | ExpressionNode;
+}
+
 export interface CallExprNode extends ASTNode {
   type: "CallExpr";
   callee: ExpressionNode;
@@ -131,7 +139,7 @@ export interface IndexAccessNode extends ASTNode {
   index: ExpressionNode;
 }
 
-export interface MemberExprNode {
+export interface MemberExprNode extends ASTNode {
   type: "MemberExpr";
   object: ExpressionNode;
   property: string;

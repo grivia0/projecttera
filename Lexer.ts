@@ -58,7 +58,7 @@ export class Lexer {
       case ".": this.addToken(TokenType.DOT); break;
       case "`": this.addToken(TokenType.BACKTICK); break;
       
-      // --- Full Arithmetic Operators Support, meow! ---
+      // --- Full Arithmetic Operators Support
       case "+": 
         this.addToken(this.match("+") ? TokenType.PLUS_PLUS : TokenType.PLUS); 
         break;
@@ -107,7 +107,7 @@ export class Lexer {
           this.advance(); // consume '*'
           this.advance(); // consume '/'
         } else {
-          this.addToken(TokenType.SLASH); // Division operator, meow!
+          this.addToken(TokenType.SLASH); // Division operator
         }
         break;
 

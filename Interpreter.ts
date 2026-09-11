@@ -14,7 +14,7 @@ import type {
 } from "./AST.js";
 
 export class Environment {
-  private variables: Map<string, any> = new Map();
+  private variables = new Map();
   private parent: Environment | null = null;
 
   constructor(parent: Environment | null = null) {
@@ -103,7 +103,7 @@ export class Interpreter {
       case "ExpressionStatement":
         this.evaluate(stmt.expression, env);
         break;
-      case "RemoveStatement": // <--- Add this, nya!
+      case "RemoveStatement": 
         this.executeRemoveStatement(stmt as any, env);
         break;
       default:
@@ -206,6 +206,7 @@ export class Interpreter {
   }
 
   private evaluate(expr: ExpressionNode, env: Environment): any {
+    const node = expr as any;
     switch (expr.type) {
       case "Literal":
         return expr.value;
@@ -229,6 +230,14 @@ export class Interpreter {
           if (prop === "last") return obj.length > 0 ? obj[obj.length - 1] : undefined;
           if (prop === "asString") return () => obj.toString();
           if (prop === "at") return (idx: number) => obj.at(idx);
+          if (prop === "get") return (idx: number) => {
+            if (idx < 0 || idx >= obj.length) {
+              throw new Error(`[Runtime Error] Index out of bounds for array of length ${obj.length}`);
+            }
+            return obj[idx];
+          };
+          if (prop === "find") return (pred: Function) => obj.find((el: any) => pred(el));
+          if (prop === "findIndex") return (pred: Function) => obj.findIndex((el: any) => pred(el));
           if (prop === "join") return (sep: string = ",") => obj.join(sep);
           if (prop === "rmv") return (idx: number) => obj.splice(idx, 1)[0];
           if (prop === "push") return (...args: any[]) => obj.push(...args);
@@ -278,6 +287,30 @@ export class Interpreter {
           return callee(...args);
         }
         throw new Error(`[Runtime Error] Target is not callable`);
+      }
+      case "FunctionExpr": {
+        const fnExpr = expr as any;
+        return (...args: any[]) => {
+          const fnEnv = new Environment(env);
+          for (let i = 0; i < fnExpr.params.length; i++) {
+            fnEnv.define(fnExpr.params[i]!.name, args[i]);
+          }
+          try {
+            if (Array.isArray(fnExpr.body)) {
+              for (const stmt of fnExpr.body) {
+                this.execute(stmt, fnEnv);
+              }
+            } else {
+              return this.evaluate(fnExpr.body, fnEnv);
+            }
+          } catch (err: any) {
+            if (err instanceof ReturnValue) {
+              return err.value;
+            }
+            throw err;
+          }
+          return undefined;
+        };
       }
       default:
         throw new Error(`[Runtime Error] Unknown expression type: ${(expr as any).type}`);

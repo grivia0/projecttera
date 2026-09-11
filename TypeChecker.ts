@@ -114,7 +114,7 @@ export class TypeChecker {
       case "ExpressionStatement":
         this.inferExpressionType(stmt.expression, env);
         break;
-      case "RemoveStatement": // <--- Handle the RemoveStatement node directly!
+      case "RemoveStatement":
         this.checkRemoveStatement(stmt as any, env);
         break;
       default:
@@ -198,7 +198,6 @@ export class TypeChecker {
   }
 
   private checkRemoveStatement(node: RemoveStatementNode, env: TypeEnvironment): void {
-    // Ensure the index access target is valid and indexable
     this.inferIndexAccessType(node.target, env);
   }
 
@@ -246,6 +245,20 @@ export class TypeChecker {
         return this.inferMemberExprType(expr, env);
       case "AssignmentExpr":
         return this.inferAssignmentExprType(expr, env);
+      case "FunctionExpr": {
+        const fnEnv = new TypeEnvironment(env);
+        for (const param of (expr as any).params) {
+          fnEnv.define(param.name, param.paramType);
+        }
+        if (Array.isArray((expr as any).body)) {
+          for (const stmt of (expr as any).body) {
+            this.checkStatement(stmt, fnEnv);
+          }
+        } else {
+          this.inferExpressionType((expr as any).body, fnEnv);
+        }
+        return "function";
+      }
       default:
         throw new TypeError(`Unknown expression type: ${(expr as ASTNode).type}`);
     }
@@ -288,7 +301,10 @@ export class TypeChecker {
         "copyIn",
         "flat",
         "slice",
-        "splice"
+        "splice",
+        "get",
+        "find",
+        "findIndex"
       ].includes(node.property)) {
         return "function";
       }
@@ -298,6 +314,7 @@ export class TypeChecker {
       if (node.property === "leng") return "int";
       if (node.property === "isEmpty") return "boolean";
       if (node.property === "first" || node.property === "last") return "string";
+      if (node.property === "asString") return "function";
     }
 
     return "undefined";
@@ -328,10 +345,10 @@ export class TypeChecker {
       );
     }
 
-    if (["==", "!=", "<", ">", "<=", ">="].includes(node.operator)) {
+    if (["==", "===", "!=", "<", ">", "<=", ">="].includes(node.operator)) {
       if (leftType !== rightType) {
         throw new TypeError(
-          `Comparison '${node.operator}' expects matching types, got '${leftType}' and '${rightType}'.`
+          `Comparison '\({node.operator}' expects matching types, got '\){leftType}' and '${rightType}'.`
         );
       }
       return "boolean";
@@ -360,7 +377,7 @@ export class TypeChecker {
       this.inferExpressionType(arg, env);
     }
 
-    // Infer return types for built-in array methods, meow! 🐾
+    // Infer return types for built-in array methods
     if (node.callee.type === "MemberExpr") {
       const memberExpr = node.callee;
       const objectType = this.inferExpressionType(memberExpr.object, env);
@@ -372,8 +389,11 @@ export class TypeChecker {
         if (["copyIn", "merge", "flat", "slice", "splice"].includes(prop)) {
           return objectType;
         }
-        if (["at", "rmv", "shift", "rmShift"].includes(prop)) {
+        if (["at", "get", "find", "rmv", "shift", "rmShift"].includes(prop)) {
           return elemType;
+        }
+        if (["findIndex"].includes(prop)) {
+          return "int";
         }
         if (["asString", "join"].includes(prop)) {
           return "string";

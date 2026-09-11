@@ -35,7 +35,7 @@ export class Parser {
     if (this.match(TokenType.SWITCH)) return this.switchStatement();
     if (this.match(TokenType.RETURN)) return this.returnStatement();
 
-    // Catch 'rm x[0]' statement, meow! 🐾
+    // Catch 'rm x[0]' statement
     if (this.check(TokenType.IDENTIFIER) && this.peek().lexeme === "rm") {
       this.advance(); // consume "rm"
       return this.removeStatement();
@@ -53,7 +53,7 @@ export class Parser {
     return {
       type: "RemoveStatement",
       target,
-    } as any; // Cast or add RemoveStatementNode to AST.ts
+    } as any; 
   }
 
   private varDeclaration(): VarDeclNode {
@@ -314,7 +314,7 @@ export class Parser {
 
     while (this.match(TokenType.STAR_STAR)) {
       const operator = this.previous().lexeme;
-      const right = this.exponentiation(); // Right-associative for **
+      const right = this.exponentiation();
       expr = { type: "BinaryExpr", left: expr, operator, right };
     }
 
@@ -381,6 +381,9 @@ export class Parser {
     if (this.match(TokenType.IDENTIFIER)) {
       return { type: "Identifier", name: this.previous().lexeme };
     }
+    if (this.match(TokenType.FN)) {
+      return this.functionExpression();
+    }
     if (this.match(TokenType.LBRACKET)) {
       const elements: ExpressionNode[] = [];
       if (!this.check(TokenType.RBRACKET)) {
@@ -392,7 +395,34 @@ export class Parser {
       return { type: "ArrayLiteral", elements };
     }
 
-    throw new Error(`[Parser Error] Unexpected token '${this.peek().lexeme}' on line ${this.peek().line}`);
+    throw new Error(`[Parser Error] Unexpected token '\({this.peek().lexeme}' on line\){this.peek().line}`);
+  }
+
+  private functionExpression(): ExpressionNode {
+    this.consume(TokenType.LPAREN, "Expected '(' after 'fn'.");
+
+    const params: { name: string; paramType: string }[] = [];
+    if (!this.check(TokenType.RPAREN)) {
+      do {
+        const pName = this.consume(TokenType.IDENTIFIER, "Expected parameter name.").lexeme;
+        this.consume(TokenType.COLON, "Expected ':' after parameter name.");
+        const pType = this.parseTypeAnnotation();
+        params.push({ name: pName, paramType: pType });
+      } while (this.match(TokenType.COMMA));
+    }
+    this.consume(TokenType.RPAREN, "Expected ')' after parameters.");
+
+    this.consume(TokenType.ARROW, "Expected '=>' before return type.");
+    const returnType = this.parseTypeAnnotation();
+
+    this.consume(TokenType.LBRACE, "Expected '{' before function body.");
+    const body: StatementNode[] = [];
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      body.push(this.statement());
+    }
+    this.consume(TokenType.RBRACE, "Expected '}' after function body.");
+
+    return { type: "FunctionExpr", params, returnType, body } as any;
   }
 
   private checkTypeAnnotation(): boolean {
@@ -460,7 +490,7 @@ export class Parser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(`[Line ${this.peek().line}] ${message} Got '${this.peek().lexeme}'`);
+    throw new Error(`[Line \({this.peek().line}]\){message} Got '${this.peek().lexeme}'`);
   }
 
   private optionalSemicolon(): void {
