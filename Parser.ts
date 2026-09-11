@@ -395,7 +395,7 @@ export class Parser {
       return { type: "ArrayLiteral", elements };
     }
 
-    throw new Error(`[Parser Error] Unexpected token '\({this.peek().lexeme}' on line\){this.peek().line}`);
+    throw new Error(`[Parser Error] Unexpected token '\(${this.peek().lexeme}' on line\)${this.peek().line}`);
   }
 
   private functionExpression(): ExpressionNode {
@@ -490,7 +490,7 @@ export class Parser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(`[Line \({this.peek().line}]\){message} Got '${this.peek().lexeme}'`);
+    throw new Error(`[Line \(${this.peek().line}]\)${message} Got '${this.peek().lexeme}'`);
   }
 
   private optionalSemicolon(): void {
