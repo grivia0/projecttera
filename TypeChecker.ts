@@ -294,7 +294,7 @@ export class TypeChecker {
         "at",
         "join",
         "rmv",
-        "push",
+        "add",
         "shift",
         "rmShift",
         "merge",

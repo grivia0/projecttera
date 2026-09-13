@@ -240,7 +240,7 @@ export class Interpreter {
           if (prop === "findIndex") return (pred: Function) => obj.findIndex((el: any) => pred(el));
           if (prop === "join") return (sep: string = ",") => obj.join(sep);
           if (prop === "rmv") return (idx: number) => obj.splice(idx, 1)[0];
-          if (prop === "push") return (...args: any[]) => obj.push(...args);
+          if (prop === "add") return (...args: any[]) => obj.push(...args);
           if (prop === "shift") return () => obj.shift();
           if (prop === "rmShift") return () => obj.shift();
           if (prop === "merge") return (other: any[]) => obj.concat(other);
