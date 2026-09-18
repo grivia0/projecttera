@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import type {
   ProgramNode,
   StatementNode,
@@ -61,9 +62,23 @@ export class Interpreter {
   }
 
   private setupGlobals(): void {
-    // Built-in print statement / global function
-    this.globalEnv.define("print", (...args: any[]) => {
-      console.log(...args);
+  // Built-in print statement / global function
+  this.globalEnv.define("print", (...args: any[]) => {
+    console.log(...args);
+  });
+
+  this.globalEnv.define("input", (promptMsg?: string) => {
+    if (promptMsg !== undefined) {
+      process.stdout.write(String(promptMsg));
+    }
+    const buffer = Buffer.alloc(1024);
+    let bytesRead = 0;
+    try {
+      bytesRead = fs.readSync(0, buffer, 0, 1024, null);
+    } catch (e) {
+      return "";
+    }
+    return buffer.toString("utf8", 0, bytesRead).trim();
     });
   }
 

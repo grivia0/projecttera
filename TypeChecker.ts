@@ -82,6 +82,7 @@ export class TypeChecker {
     this.globalEnv = new TypeEnvironment();
     // Built-in functions
     this.globalEnv.define("print", "function");
+    this.globalEnv.define("input", "function");
   }
 
   public check(node: ProgramNode): void {
@@ -128,6 +129,8 @@ export class TypeChecker {
     if (node.value) {
       inferredType = this.inferExpressionType(node.value, env);
     }
+
+    const finalTargetType = node.targetType || inferredType;
 
     if (node.targetType) {
       if (node.value && !this.isTypeCompatible(node.targetType, inferredType)) {
@@ -348,7 +351,7 @@ export class TypeChecker {
     if (["==", "===", "!=", "<", ">", "<=", ">="].includes(node.operator)) {
       if (leftType !== rightType) {
         throw new TypeError(
-          `Comparison '\({node.operator}' expects matching types, got '\){leftType}' and '${rightType}'.`
+          `Comparison '(${node.operator}' expects matching types, got ')${leftType}' and '${rightType}'.`
         );
       }
       return "boolean";
@@ -375,6 +378,10 @@ export class TypeChecker {
 
     for (const arg of node.arguments) {
       this.inferExpressionType(arg, env);
+    }
+
+    if (node.callee.type === "Identifier" && node.callee.name === "input") {
+      return "string";
     }
 
     // Infer return types for built-in array methods
