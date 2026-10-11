@@ -55,6 +55,10 @@ class ReturnValue {
   constructor(public value: any) {}
 }
 
+// Control-flow signals used to unwind out of loop bodies (mirrors ReturnValue).
+class BreakSignal {}
+class ContinueSignal {}
+
 export class Interpreter {
   private globalEnv: Environment;
 
@@ -129,6 +133,10 @@ export class Interpreter {
       case "RemoveStatement": 
         this.executeRemoveStatement(stmt as any, env);
         break;
+      case "BreakStatement":
+        throw new BreakSignal();
+      case "ContinueStatement":
+        throw new ContinueSignal();
       default:
         throw new Error(`[Runtime Error] Unknown statement type: ${(stmt as any).type}`);
     }
@@ -203,11 +211,17 @@ export class Interpreter {
 
   private executeWhileStatement(node: WhileStatementNode, env: Environment): void {
     while (this.evaluate(node.condition, env)) {
-      if (Array.isArray(node.body)) {
-        const loopEnv = new Environment(env);
-        for (const stmt of node.body) this.execute(stmt, loopEnv);
-      } else {
-        this.execute(node.body, env);
+      try {
+        if (Array.isArray(node.body)) {
+          const loopEnv = new Environment(env);
+          for (const stmt of node.body) this.execute(stmt, loopEnv);
+        } else {
+          this.execute(node.body, env);
+        }
+      } catch (err) {
+        if (err instanceof BreakSignal) break;
+        if (err instanceof ContinueSignal) continue;
+        throw err;
       }
     }
   }
@@ -221,10 +235,16 @@ export class Interpreter {
     for (const item of iterable) {
       const loopEnv = new Environment(env);
       loopEnv.define(node.variable, item);
-      if (Array.isArray(node.body)) {
-        for (const stmt of node.body) this.execute(stmt, loopEnv);
-      } else {
-        this.execute(node.body, loopEnv);
+      try {
+        if (Array.isArray(node.body)) {
+          for (const stmt of node.body) this.execute(stmt, loopEnv);
+        } else {
+          this.execute(node.body, loopEnv);
+        }
+      } catch (err) {
+        if (err instanceof BreakSignal) break;
+        if (err instanceof ContinueSignal) continue;
+        throw err;
       }
     }
   }
@@ -245,11 +265,17 @@ export class Interpreter {
         break;
       }
 
-      if (Array.isArray(node.body)) {
-        const bodyEnv = new Environment(loopEnv);
-        for (const stmt of node.body) this.execute(stmt, bodyEnv);
-      } else {
-        this.execute(node.body, loopEnv);
+      try {
+        if (Array.isArray(node.body)) {
+          const bodyEnv = new Environment(loopEnv);
+          for (const stmt of node.body) this.execute(stmt, bodyEnv);
+        } else {
+          this.execute(node.body, loopEnv);
+        }
+      } catch (err) {
+        if (err instanceof BreakSignal) break;
+        if (!(err instanceof ContinueSignal)) throw err;
+        // ContinueSignal: fall through so the update clause still runs.
       }
 
       if (node.update) {
@@ -266,8 +292,13 @@ export class Interpreter {
       if (caseNode.test === null || matched || this.evaluate(caseNode.test, env) === value) {
         matched = true;
         const caseEnv = new Environment(env);
-        for (const stmt of caseNode.consequent) {
-          this.execute(stmt, caseEnv);
+        try {
+          for (const stmt of caseNode.consequent) {
+            this.execute(stmt, caseEnv);
+          }
+        } catch (err) {
+          if (err instanceof BreakSignal) break; // `break` exits the switch
+          throw err;
         }
         if (matched) break; // Break execution after matching case
       }
@@ -275,7 +306,6 @@ export class Interpreter {
   }
 
   private evaluate(expr: ExpressionNode, env: Environment): any {
-    const node = expr as any;
     switch (expr.type) {
       case "Literal":
         return expr.value;
@@ -396,6 +426,16 @@ export class Interpreter {
   }
 
   private evaluateBinary(leftExpr: ExpressionNode, op: string, rightExpr: ExpressionNode, env: Environment): any {
+    // Logical operators short-circuit: the right side is only evaluated when needed.
+    if (op === "&&") {
+      const left = this.evaluate(leftExpr, env);
+      return left ? this.evaluate(rightExpr, env) : false;
+    }
+    if (op === "||") {
+      const left = this.evaluate(leftExpr, env);
+      return left ? true : this.evaluate(rightExpr, env);
+    }
+
     const left = this.evaluate(leftExpr, env);
     const right = this.evaluate(rightExpr, env);
 

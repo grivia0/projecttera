@@ -6,9 +6,9 @@ ProjectTera is a small statically typed interpreted programming language and com
 
 ##  Features
 
-* **Lexer & Parser:** Tokenizes source code into a robust AST supporting expressions, statements, control flow, and functions.
-* **Static Type Checker:** Enforces strict type safety (`int`, `string`, `boolean`, custom array types, etc.) with lexical scope management.
-* **Tree-Walk Interpreter:** Dynamically evaluates and executes statements, variable assignments, index mutations, and built-in functions at runtime.
+* **Lexer & Parser:** Tokenizes source code into a robust AST supporting expressions, statements, control flow, functions, boolean logic operators, and loop-control statements.
+* **Static Type Checker:** Enforces strict type safety (`int`, `string`, `bool`, custom array types, etc.) with lexical scope management, function signature checking (argument count, parameter types, and declared return types), and placement validation for loop-control statements.
+* **Tree-Walk Interpreter:** Dynamically evaluates and executes statements, variable assignments, index mutations, and built-in functions at runtime, with short-circuiting boolean evaluation and full loop-control support.
 * **Modern TypeScript:** Clean, modular codebase designed with extensibility in mind.
 
 ---

@@ -20,6 +20,8 @@ export type StatementNode =
   | SwitchStatementNode
   | ExpressionStatementNode
   | RemoveStatementNode
+  | BreakStatementNode
+  | ContinueStatementNode
   | ReturnStatementNode;
 
 export interface VarDeclNode extends ASTNode {
@@ -86,6 +88,16 @@ export interface SwitchStatementNode extends ASTNode {
 export interface ReturnStatementNode extends ASTNode {
   type: "ReturnStatement";
   value?: ExpressionNode | undefined;
+}
+
+// Exits the innermost enclosing loop (or switch).
+export interface BreakStatementNode extends ASTNode {
+  type: "BreakStatement";
+}
+
+// Skips to the next iteration of the innermost enclosing loop.
+export interface ContinueStatementNode extends ASTNode {
+  type: "ContinueStatement";
 }
 
 export interface ExpressionStatementNode extends ASTNode {

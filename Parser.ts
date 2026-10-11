@@ -34,6 +34,14 @@ export class Parser {
     if (this.match(TokenType.WHILE)) return this.whileStatement();
     if (this.match(TokenType.FOR)) return this.forStatement();
     if (this.match(TokenType.SWITCH)) return this.switchStatement();
+    if (this.match(TokenType.BREAK)) {
+      this.optionalSemicolon();
+      return { type: "BreakStatement" };
+    }
+    if (this.match(TokenType.CONTINUE)) {
+      this.optionalSemicolon();
+      return { type: "ContinueStatement" };
+    }
     if (this.match(TokenType.RETURN)) return this.returnStatement();
 
     // Catch 'rm x[0]' statement
@@ -298,7 +306,7 @@ export class Parser {
   }
 
   private assignment(): ExpressionNode {
-    const expr = this.range();
+    const expr = this.logicalOr();
 
     if (this.match(TokenType.ASSIGN)) {
       const equalsToken = this.previous();
@@ -318,6 +326,30 @@ export class Parser {
     return expr;
   }
 
+  private logicalOr(): ExpressionNode {
+    let expr = this.logicalAnd();
+
+    while (this.match(TokenType.OR_OR)) {
+      const operator = this.previous().lexeme;
+      const right = this.logicalAnd();
+      expr = { type: "BinaryExpr", left: expr, operator, right };
+    }
+
+    return expr;
+  }
+
+  private logicalAnd(): ExpressionNode {
+    let expr = this.range();
+
+    while (this.match(TokenType.AND_AND)) {
+      const operator = this.previous().lexeme;
+      const right = this.range();
+      expr = { type: "BinaryExpr", left: expr, operator, right };
+    }
+
+    return expr;
+  }
+
   private range(): ExpressionNode {
     const expr = this.equality();
 
@@ -332,7 +364,7 @@ export class Parser {
   private equality(): ExpressionNode {
     let expr = this.comparison();
 
-    while (this.match(TokenType.EQUALS, TokenType.STRICT_EQUALS)) {
+    while (this.match(TokenType.EQUALS, TokenType.STRICT_EQUALS, TokenType.NOT_EQUALS)) {
       const operator = this.previous().lexeme;
       const right = this.comparison();
       expr = { type: "BinaryExpr", left: expr, operator, right };
@@ -344,7 +376,7 @@ export class Parser {
   private comparison(): ExpressionNode {
     let expr = this.term();
 
-    while (this.match(TokenType.GREATER, TokenType.LESS)) {
+    while (this.match(TokenType.GREATER, TokenType.LESS, TokenType.GREATER_EQUALS, TokenType.LESS_EQUALS)) {
       const operator = this.previous().lexeme;
       const right = this.term();
       expr = { type: "BinaryExpr", left: expr, operator, right };
@@ -390,7 +422,7 @@ export class Parser {
   }
 
   private unary(): ExpressionNode {
-    if (this.match(TokenType.MINUS, TokenType.PLUS, TokenType.PLUS_PLUS, TokenType.MINUS_MINUS)) {
+    if (this.match(TokenType.MINUS, TokenType.PLUS, TokenType.PLUS_PLUS, TokenType.MINUS_MINUS, TokenType.BANG)) {
       const operator = this.previous().lexeme;
       const right = this.unary();
       return { type: "UnaryExpr", operator, right, isPostfix: false };
@@ -463,7 +495,7 @@ export class Parser {
       return { type: "ArrayLiteral", elements };
     }
 
-    throw new Error(`[Parser Error] Unexpected token '\(${this.peek().lexeme}' on line\)${this.peek().line}`);
+    throw new Error(`[Parser Error] Unexpected token '${this.peek().lexeme}' on line ${this.peek().line}`);
   }
 
   private functionExpression(): ExpressionNode {
@@ -558,7 +590,7 @@ export class Parser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(`[Line \(${this.peek().line}]\)${message} Got '${this.peek().lexeme}'`);
+    throw new Error(`[Line ${this.peek().line}] ${message} Got '${this.peek().lexeme}'`);
   }
 
   private optionalSemicolon(): void {

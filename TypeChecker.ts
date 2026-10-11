@@ -72,13 +72,26 @@ class TypeEnvironment {
   }
 
   private isCompatible(target: string, inferred: string): boolean {
-    if (target === inferred) return true;
+    if (this.normalizeType(target) === this.normalizeType(inferred)) return true;
     return false;
+  }
+
+  // The annotation keyword is `bool` but inferred boolean values are typed `boolean`;
+  // normalize so the two spellings (including inside arr[...]) compare as equal.
+  private normalizeType(t: string): string {
+    if (t === "bool") return "boolean";
+    if (t.startsWith("arr[")) return `arr[${this.normalizeType(t.slice(4, -1))}]`;
+    return t;
   }
 }
 
 export class TypeChecker {
   private globalEnv: TypeEnvironment;
+  // Declared return type of the function currently being checked (null at top level).
+  private currentReturnType: TeraType | null = null;
+  // Nesting depth so `break`/`continue` can be validated statically.
+  private breakableDepth: number = 0;   // loops + switch
+  private continuableDepth: number = 0; // loops only
 
   constructor() {
     this.globalEnv = new TypeEnvironment();
@@ -120,6 +133,16 @@ export class TypeChecker {
       case "ReturnStatement":
         this.checkReturnStatement(stmt, env);
         break;
+      case "BreakStatement":
+        if (this.breakableDepth === 0) {
+          throw new TypeError(`'break' used outside of a loop or switch.`);
+        }
+        break;
+      case "ContinueStatement":
+        if (this.continuableDepth === 0) {
+          throw new TypeError(`'continue' used outside of a loop.`);
+        }
+        break;
       case "ExpressionStatement":
         this.inferExpressionType(stmt.expression, env);
         break;
@@ -146,28 +169,51 @@ export class TypeChecker {
           `Cannot assign value of type '${inferredType}' to target type '${node.targetType}' for variable '${node.identifier}'.`
         );
       }
-      env.define(node.identifier, node.targetType);
+      env.define(node.identifier, this.normalizeType(node.targetType));
     } else {
       env.define(node.identifier, inferredType);
     }
   }
 
   private checkFunctionDecl(node: FunctionDeclNode, env: TypeEnvironment): void {
+    const returnType = node.returnType ?? "undefined";
     if (node.name) {
-      env.define(node.name, "function");
+      env.define(node.name, this.makeSignature(node.params, returnType));
     }
 
     const fnEnv = new TypeEnvironment(env);
     for (const param of node.params) {
-      fnEnv.define(param.name, param.paramType);
+      fnEnv.define(param.name, this.normalizeType(param.paramType));
     }
 
-    if (Array.isArray(node.body)) {
-      for (const stmt of node.body) {
-        this.checkStatement(stmt, fnEnv);
+    this.checkFunctionBody(node.body, returnType, fnEnv);
+  }
+
+  // Shared by named functions and inline function expressions: checks the body while
+  // enforcing the declared return type and resetting loop/break context at the boundary.
+  private checkFunctionBody(
+    body: StatementNode[] | ExpressionNode,
+    returnType: TeraType,
+    fnEnv: TypeEnvironment
+  ): void {
+    const outerReturn = this.currentReturnType;
+    const outerBreak = this.breakableDepth;
+    const outerContinue = this.continuableDepth;
+    this.currentReturnType = returnType;
+    this.breakableDepth = 0;
+    this.continuableDepth = 0;
+    try {
+      if (Array.isArray(body)) {
+        for (const stmt of body) {
+          this.checkStatement(stmt, fnEnv);
+        }
+      } else {
+        this.inferExpressionType(body, fnEnv);
       }
-    } else {
-      this.inferExpressionType(node.body, fnEnv);
+    } finally {
+      this.currentReturnType = outerReturn;
+      this.breakableDepth = outerBreak;
+      this.continuableDepth = outerContinue;
     }
   }
 
@@ -200,11 +246,18 @@ export class TypeChecker {
       throw new TypeError(`While loop condition must be a boolean, got '${condType}'.`);
     }
 
-    if (Array.isArray(node.body)) {
-      const loopEnv = new TypeEnvironment(env);
-      for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
-    } else {
-      this.checkStatement(node.body, env);
+    this.breakableDepth++;
+    this.continuableDepth++;
+    try {
+      if (Array.isArray(node.body)) {
+        const loopEnv = new TypeEnvironment(env);
+        for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
+      } else {
+        this.checkStatement(node.body, env);
+      }
+    } finally {
+      this.breakableDepth--;
+      this.continuableDepth--;
     }
   }
 
@@ -219,10 +272,17 @@ export class TypeChecker {
     const loopEnv = new TypeEnvironment(env);
     loopEnv.define(node.variable, elementType);
 
-    if (Array.isArray(node.body)) {
-      for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
-    } else {
-      this.checkStatement(node.body, loopEnv);
+    this.breakableDepth++;
+    this.continuableDepth++;
+    try {
+      if (Array.isArray(node.body)) {
+        for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
+      } else {
+        this.checkStatement(node.body, loopEnv);
+      }
+    } finally {
+      this.breakableDepth--;
+      this.continuableDepth--;
     }
   }
 
@@ -248,10 +308,17 @@ export class TypeChecker {
       this.inferExpressionType(node.update, loopEnv);
     }
 
-    if (Array.isArray(node.body)) {
-      for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
-    } else {
-      this.checkStatement(node.body, loopEnv);
+    this.breakableDepth++;
+    this.continuableDepth++;
+    try {
+      if (Array.isArray(node.body)) {
+        for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
+      } else {
+        this.checkStatement(node.body, loopEnv);
+      }
+    } finally {
+      this.breakableDepth--;
+      this.continuableDepth--;
     }
   }
 
@@ -261,25 +328,33 @@ export class TypeChecker {
 
   private checkSwitchStatement(node: SwitchStatementNode, env: TypeEnvironment): void {
     const discType = this.inferExpressionType(node.discriminant, env);
-    for (const c of node.cases) {
-      if (c.test) {
-        const testType = this.inferExpressionType(c.test, env);
-        if (discType !== testType) {
-          throw new TypeError(
-            `Switch case test type '${testType}' does not match discriminant type '${discType}'.`
-          );
+    this.breakableDepth++;
+    try {
+      for (const c of node.cases) {
+        if (c.test) {
+          const testType = this.inferExpressionType(c.test, env);
+          if (discType !== testType) {
+            throw new TypeError(
+              `Switch case test type '${testType}' does not match discriminant type '${discType}'.`
+            );
+          }
+        }
+        const caseEnv = new TypeEnvironment(env);
+        for (const stmt of c.consequent) {
+          this.checkStatement(stmt, caseEnv);
         }
       }
-      const caseEnv = new TypeEnvironment(env);
-      for (const stmt of c.consequent) {
-        this.checkStatement(stmt, caseEnv);
-      }
+    } finally {
+      this.breakableDepth--;
     }
   }
 
   private checkReturnStatement(node: ReturnStatementNode, env: TypeEnvironment): void {
-    if (node.value) {
-      this.inferExpressionType(node.value, env);
+    const valueType: TeraType = node.value ? this.inferExpressionType(node.value, env) : "undefined";
+    if (this.currentReturnType !== null && !this.isTypeCompatible(this.currentReturnType, valueType)) {
+      throw new TypeError(
+        `Cannot return value of type '${valueType}' from a function declared to return '${this.currentReturnType}'.`
+      );
     }
   }
 
@@ -314,18 +389,14 @@ export class TypeChecker {
       case "AssignmentExpr":
         return this.inferAssignmentExprType(expr, env);
       case "FunctionExpr": {
+        const fnExpr = expr as any;
+        const returnType: TeraType = fnExpr.returnType ?? "undefined";
         const fnEnv = new TypeEnvironment(env);
-        for (const param of (expr as any).params) {
-          fnEnv.define(param.name, param.paramType);
+        for (const param of fnExpr.params) {
+          fnEnv.define(param.name, this.normalizeType(param.paramType));
         }
-        if (Array.isArray((expr as any).body)) {
-          for (const stmt of (expr as any).body) {
-            this.checkStatement(stmt, fnEnv);
-          }
-        } else {
-          this.inferExpressionType((expr as any).body, fnEnv);
-        }
-        return "function";
+        this.checkFunctionBody(fnExpr.body, returnType, fnEnv);
+        return this.makeSignature(fnExpr.params, returnType);
       }
       default:
         throw new TypeError(`Unknown expression type: ${(expr as ASTNode).type}`);
@@ -405,6 +476,15 @@ export class TypeChecker {
     const leftType = this.inferExpressionType(node.left, env);
     const rightType = this.inferExpressionType(node.right, env);
 
+    if (node.operator === "&&" || node.operator === "||") {
+      if (leftType !== "boolean" || rightType !== "boolean") {
+        throw new TypeError(
+          `Operator '${node.operator}' requires boolean operands, got '${leftType}' and '${rightType}'.`
+        );
+      }
+      return "boolean";
+    }
+
     if (["+", "-", "*", "/", "%", "**"].includes(node.operator)) {
       if (leftType === "int" && rightType === "int") return "int";
       if (node.operator === "+" && leftType === "string" && rightType === "string") return "string";
@@ -416,7 +496,7 @@ export class TypeChecker {
     if (["==", "===", "!=", "<", ">", "<=", ">="].includes(node.operator)) {
       if (leftType !== rightType) {
         throw new TypeError(
-          `Comparison '(${node.operator}' expects matching types, got ')${leftType}' and '${rightType}'.`
+          `Comparison '${node.operator}' expects matching types, got '${leftType}' and '${rightType}'.`
         );
       }
       return "boolean";
@@ -427,6 +507,12 @@ export class TypeChecker {
 
   private inferUnaryExprType(node: UnaryExprNode, env: TypeEnvironment): TeraType {
     const rightType = this.inferExpressionType(node.right, env);
+    if (node.operator === "!") {
+      if (rightType !== "boolean") {
+        throw new TypeError(`Unary operator '!' requires a boolean operand, got '${rightType}'.`);
+      }
+      return "boolean";
+    }
     if (["-", "+", "++", "--"].includes(node.operator)) {
       if (rightType === "int" || rightType === "float") {
         return rightType;
@@ -437,12 +523,28 @@ export class TypeChecker {
 
   private inferCallExprType(node: CallExprNode, env: TypeEnvironment): TeraType {
     const calleeType = this.inferExpressionType(node.callee, env);
-    if (calleeType !== "function") {
-      throw new TypeError(`Cannot call non-function target of type '${calleeType}'.`);
+    const argTypes = node.arguments.map((arg) => this.inferExpressionType(arg, env));
+
+    // User-defined function: verify arity + argument types and yield its return type.
+    if (calleeType.startsWith("fn(")) {
+      const { params, ret } = this.parseSignature(calleeType);
+      if (argTypes.length !== params.length) {
+        throw new TypeError(
+          `Function expects ${params.length} argument(s) but got ${argTypes.length}.`
+        );
+      }
+      for (let i = 0; i < params.length; i++) {
+        if (!this.isTypeCompatible(params[i]!, argTypes[i]!)) {
+          throw new TypeError(
+            `Argument ${i + 1} expects type '${params[i]}' but got '${argTypes[i]}'.`
+          );
+        }
+      }
+      return ret;
     }
 
-    for (const arg of node.arguments) {
-      this.inferExpressionType(arg, env);
+    if (calleeType !== "function") {
+      throw new TypeError(`Cannot call non-function target of type '${calleeType}'.`);
     }
 
     if (node.callee.type === "Identifier" && node.callee.name === "input") {
@@ -507,9 +609,30 @@ export class TypeChecker {
     throw new TypeError(`Type '${objType}' is not indexable.`);
   }
 
+  // Encodes a function's type as a string, e.g. `fn(int,string)->bool`.
+  private makeSignature(params: { name: string; paramType: string }[], returnType: TeraType): string {
+    return `fn(${params.map((p) => this.normalizeType(p.paramType)).join(",")})->${this.normalizeType(returnType)}`;
+  }
+
+  // Inverse of makeSignature.
+  private parseSignature(sig: string): { params: string[]; ret: string } {
+    const closed = sig.indexOf(")->");
+    const inner = sig.slice(3, closed);
+    const ret = sig.slice(closed + 3);
+    const params = inner.length === 0 ? [] : inner.split(",");
+    return { params, ret };
+  }
+
   private isTypeCompatible(target: string, inferred: string): boolean {
-    if (target === inferred) return true;
-    if (target === "arr[int]" && inferred === "arr[int]") return true;
+    if (this.normalizeType(target) === this.normalizeType(inferred)) return true;
     return false;
+  }
+
+  // The annotation keyword is `bool` while inferred booleans are typed `boolean`;
+  // normalize so the two spellings (including nested in arr[...]) compare as equal.
+  private normalizeType(t: string): string {
+    if (t === "bool") return "boolean";
+    if (t.startsWith("arr[")) return `arr[${this.normalizeType(t.slice(4, -1))}]`;
+    return t;
   }
 }

@@ -10,6 +10,7 @@ export enum TokenType {
   CASE = "CASE",
   DEFAULT = "DEFAULT",
   BREAK = "BREAK",
+  CONTINUE = "CONTINUE",
   RETURN = "RETURN",
 
   // Type Keywords
@@ -42,6 +43,12 @@ export enum TokenType {
   PERCENT = "PERCENT",       // %
   GREATER = "GREATER",       // >
   LESS = "LESS",             // <
+  GREATER_EQUALS = "GREATER_EQUALS", // >=
+  LESS_EQUALS = "LESS_EQUALS",       // <=
+  NOT_EQUALS = "NOT_EQUALS", // !=
+  BANG = "BANG",             // !
+  AND_AND = "AND_AND",       // &&
+  OR_OR = "OR_OR",           // ||
 
   // Delimiters
   LPAREN = "LPAREN",         // (

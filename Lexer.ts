@@ -18,6 +18,7 @@ export class Lexer {
     case: TokenType.CASE,
     default: TokenType.DEFAULT,
     break: TokenType.BREAK,
+    continue: TokenType.CONTINUE,
     return: TokenType.RETURN,
     int: TokenType.TYPE_INT,
     string: TokenType.TYPE_STRING,
@@ -77,10 +78,29 @@ export class Lexer {
       // ------------------------------------------------
 
       case ">":
-        this.addToken(this.match("=") ? TokenType.GREATER : TokenType.GREATER); 
+        this.addToken(this.match("=") ? TokenType.GREATER_EQUALS : TokenType.GREATER); 
         break;
       case "<":
-        this.addToken(this.match("=") ? TokenType.LESS : TokenType.LESS); 
+        this.addToken(this.match("=") ? TokenType.LESS_EQUALS : TokenType.LESS); 
+        break;
+
+      // --- Logical & Negation Operators
+      case "!":
+        this.addToken(this.match("=") ? TokenType.NOT_EQUALS : TokenType.BANG);
+        break;
+      case "&":
+        if (this.match("&")) {
+          this.addToken(TokenType.AND_AND);
+        } else {
+          console.error(`[Line ${this.line}] Error: Unexpected character '&' (did you mean '&&'?)`);
+        }
+        break;
+      case "|":
+        if (this.match("|")) {
+          this.addToken(TokenType.OR_OR);
+        } else {
+          console.error(`[Line ${this.line}] Error: Unexpected character '|' (did you mean '||'?)`);
+        }
         break;
 
       case "=":
