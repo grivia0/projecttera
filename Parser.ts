@@ -32,6 +32,7 @@ export class Parser {
     if (this.match(TokenType.FN)) return this.functionDeclaration();
     if (this.match(TokenType.IF)) return this.ifStatement();
     if (this.match(TokenType.WHILE)) return this.whileStatement();
+    if (this.match(TokenType.FOR)) return this.forStatement();
     if (this.match(TokenType.SWITCH)) return this.switchStatement();
     if (this.match(TokenType.RETURN)) return this.returnStatement();
 
@@ -174,6 +175,62 @@ export class Parser {
     return { type: "WhileStatement", condition, body, isInline };
   }
 
+  // for <ident> : <iterable> (=> stmt | { ... })
+  private forStatement(): StatementNode {
+    // C-style form is disambiguated by the opening parenthesis.
+    if (this.check(TokenType.LPAREN)) {
+      return this.forClauseStatement();
+    }
+
+    const nameToken = this.consume(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
+    this.consume(TokenType.COLON, "Expected ':' after loop variable.");
+    const iterable = this.expression();
+    const { body, isInline } = this.loopBody();
+
+    return {
+      type: "ForStatement",
+      variable: nameToken.lexeme,
+      iterable,
+      body,
+      isInline,
+    };
+  }
+
+  // for ( [let decl | expr] ; [cond] ; [update] ) (=> stmt | { ... })
+  private forClauseStatement(): StatementNode {
+    this.consume(TokenType.LPAREN, "Expected '(' after 'for'.");
+
+    let init: VarDeclNode | ExpressionNode | null = null;
+    if (!this.check(TokenType.SEMICOLON)) {
+      init = this.match(TokenType.LET) ? this.varDeclaration() : this.expression();
+    }
+    this.optionalSemicolon();
+
+    let condition: ExpressionNode | null = null;
+    if (!this.check(TokenType.SEMICOLON)) {
+      condition = this.expression();
+    }
+    this.consume(TokenType.SEMICOLON, "Expected ';' after for-loop condition.");
+
+    let update: ExpressionNode | null = null;
+    if (!this.check(TokenType.RPAREN)) {
+      update = this.expression();
+    }
+    this.consume(TokenType.RPAREN, "Expected ')' after for-loop clauses.");
+
+    const { body, isInline } = this.loopBody();
+    return { type: "ForClauseStatement", init, condition, update, body, isInline };
+  }
+
+  // Shared body parser for both loop forms: inline `=> stmt` or `{ ... }`.
+  private loopBody(): { body: StatementNode[] | StatementNode; isInline: boolean } {
+    if (this.match(TokenType.ARROW)) {
+      return { body: this.statement(), isInline: true };
+    }
+    this.consume(TokenType.LBRACE, "Expected '{' or '=>' before loop body.");
+    return { body: this.block(), isInline: false };
+  }
+
   private switchStatement(): SwitchStatementNode {
     this.consume(TokenType.LPAREN, "Expected '(' after 'switch'.");
     const discriminant = this.expression();
@@ -241,7 +298,7 @@ export class Parser {
   }
 
   private assignment(): ExpressionNode {
-    const expr = this.equality();
+    const expr = this.range();
 
     if (this.match(TokenType.ASSIGN)) {
       const equalsToken = this.previous();
@@ -256,6 +313,17 @@ export class Parser {
       }
 
       throw new Error(`[Line ${equalsToken.line}] Invalid assignment target.`);
+    }
+
+    return expr;
+  }
+
+  private range(): ExpressionNode {
+    const expr = this.equality();
+
+    if (this.match(TokenType.DOT_DOT)) {
+      const end = this.equality();
+      return { type: "Range", start: expr, end, inclusive: true };
     }
 
     return expr;

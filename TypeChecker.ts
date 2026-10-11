@@ -6,6 +6,8 @@ import type {
   FunctionDeclNode,
   IfStatementNode,
   WhileStatementNode,
+  ForStatementNode,
+  ForClauseStatementNode,
   SwitchStatementNode,
   ReturnStatementNode,
   ExpressionStatementNode,
@@ -106,6 +108,12 @@ export class TypeChecker {
       case "WhileStatement":
         this.checkWhileStatement(stmt, env);
         break;
+      case "ForStatement":
+        this.checkForStatement(stmt, env);
+        break;
+      case "ForClauseStatement":
+        this.checkForClauseStatement(stmt, env);
+        break;
       case "SwitchStatement":
         this.checkSwitchStatement(stmt, env);
         break;
@@ -200,6 +208,53 @@ export class TypeChecker {
     }
   }
 
+  private checkForStatement(node: ForStatementNode, env: TypeEnvironment): void {
+    const iterableType = this.inferExpressionType(node.iterable, env);
+
+    if (!iterableType.startsWith("arr[")) {
+      throw new TypeError(`Cannot iterate over non-array type '${iterableType}'.`);
+    }
+
+    const elementType = iterableType.slice(4, -1);
+    const loopEnv = new TypeEnvironment(env);
+    loopEnv.define(node.variable, elementType);
+
+    if (Array.isArray(node.body)) {
+      for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
+    } else {
+      this.checkStatement(node.body, loopEnv);
+    }
+  }
+
+  private checkForClauseStatement(node: ForClauseStatementNode, env: TypeEnvironment): void {
+    const loopEnv = new TypeEnvironment(env);
+
+    if (node.init) {
+      if (node.init.type === "VarDecl") {
+        this.checkVarDecl(node.init, loopEnv);
+      } else {
+        this.inferExpressionType(node.init, loopEnv);
+      }
+    }
+
+    if (node.condition) {
+      const condType = this.inferExpressionType(node.condition, loopEnv);
+      if (condType !== "boolean") {
+        throw new TypeError(`For loop condition must be a boolean, got '${condType}'.`);
+      }
+    }
+
+    if (node.update) {
+      this.inferExpressionType(node.update, loopEnv);
+    }
+
+    if (Array.isArray(node.body)) {
+      for (const stmt of node.body) this.checkStatement(stmt, loopEnv);
+    } else {
+      this.checkStatement(node.body, loopEnv);
+    }
+  }
+
   private checkRemoveStatement(node: RemoveStatementNode, env: TypeEnvironment): void {
     this.inferIndexAccessType(node.target, env);
   }
@@ -244,6 +299,16 @@ export class TypeChecker {
         return this.inferArrayLiteralType(expr, env);
       case "IndexAccess":
         return this.inferIndexAccessType(expr, env);
+      case "Range": {
+        const startType = this.inferExpressionType(expr.start, env);
+        const endType = this.inferExpressionType(expr.end, env);
+        if (startType !== "int" || endType !== "int") {
+          throw new TypeError(
+            `Range bounds must be of type 'int', got '${startType}' and '${endType}'.`
+          );
+        }
+        return "arr[int]";
+      }
       case "MemberExpr":
         return this.inferMemberExprType(expr, env);
       case "AssignmentExpr":

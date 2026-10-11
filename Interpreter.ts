@@ -6,6 +6,8 @@ import type {
   VarDeclNode,
   IfStatementNode,
   WhileStatementNode,
+  ForStatementNode,
+  ForClauseStatementNode,
   SwitchStatementNode,
   FunctionDeclNode,
   MemberExprNode,
@@ -109,6 +111,12 @@ export class Interpreter {
       case "WhileStatement":
         this.executeWhileStatement(stmt as WhileStatementNode, env);
         break;
+      case "ForStatement":
+        this.executeForStatement(stmt as ForStatementNode, env);
+        break;
+      case "ForClauseStatement":
+        this.executeForClauseStatement(stmt as ForClauseStatementNode, env);
+        break;
       case "SwitchStatement":
         this.executeSwitchStatement(stmt as SwitchStatementNode, env);
         break;
@@ -204,6 +212,52 @@ export class Interpreter {
     }
   }
 
+  private executeForStatement(node: ForStatementNode, env: Environment): void {
+    const iterable = this.evaluate(node.iterable, env);
+    if (!Array.isArray(iterable)) {
+      throw new Error(`[Runtime Error] Cannot iterate over non-array value.`);
+    }
+
+    for (const item of iterable) {
+      const loopEnv = new Environment(env);
+      loopEnv.define(node.variable, item);
+      if (Array.isArray(node.body)) {
+        for (const stmt of node.body) this.execute(stmt, loopEnv);
+      } else {
+        this.execute(node.body, loopEnv);
+      }
+    }
+  }
+
+  private executeForClauseStatement(node: ForClauseStatementNode, env: Environment): void {
+    const loopEnv = new Environment(env);
+
+    if (node.init) {
+      if (node.init.type === "VarDecl") {
+        this.executeVarDecl(node.init, loopEnv);
+      } else {
+        this.evaluate(node.init, loopEnv);
+      }
+    }
+
+    while (true) {
+      if (node.condition && !this.evaluate(node.condition, loopEnv)) {
+        break;
+      }
+
+      if (Array.isArray(node.body)) {
+        const bodyEnv = new Environment(loopEnv);
+        for (const stmt of node.body) this.execute(stmt, bodyEnv);
+      } else {
+        this.execute(node.body, loopEnv);
+      }
+
+      if (node.update) {
+        this.evaluate(node.update, loopEnv);
+      }
+    }
+  }
+
   private executeSwitchStatement(node: SwitchStatementNode, env: Environment): void {
     const value = this.evaluate(node.discriminant, env);
     let matched = false;
@@ -233,6 +287,15 @@ export class Interpreter {
         const target = this.evaluate(expr.object, env);
         const index = this.evaluate(expr.index, env);
         return target[index];
+      }
+      case "Range": {
+        const start = this.evaluate(expr.start, env);
+        const end = this.evaluate(expr.end, env);
+        const values: number[] = [];
+        for (let i = start; i <= end; i++) {
+          values.push(i);
+        }
+        return values;
       }
       case "MemberExpr": {
         const obj = this.evaluate(expr.object, env);

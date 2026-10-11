@@ -13,6 +13,7 @@ export class Lexer {
     if: TokenType.IF,
     else: TokenType.ELSE,
     while: TokenType.WHILE,
+    for: TokenType.FOR,
     switch: TokenType.SWITCH,
     case: TokenType.CASE,
     default: TokenType.DEFAULT,
@@ -55,7 +56,9 @@ export class Lexer {
       case "]": this.addToken(TokenType.RBRACKET); break;
       case ",": this.addToken(TokenType.COMMA); break;
       case ";": this.addToken(TokenType.SEMICOLON); break;
-      case ".": this.addToken(TokenType.DOT); break;
+      case ".":
+        this.addToken(this.match(".") ? TokenType.DOT_DOT : TokenType.DOT);
+        break;
       case "`": this.addToken(TokenType.BACKTICK); break;
       
       // --- Full Arithmetic Operators Support

@@ -5,6 +5,7 @@ export enum TokenType {
   IF = "IF",
   ELSE = "ELSE",
   WHILE = "WHILE",
+  FOR = "FOR",
   SWITCH = "SWITCH",
   CASE = "CASE",
   DEFAULT = "DEFAULT",
@@ -52,6 +53,7 @@ export enum TokenType {
   COMMA = "COMMA",           // ,
   SEMICOLON = "SEMICOLON",   // ;
   DOT = "DOT",               // .
+  DOT_DOT = "DOT_DOT",       // ..
   BACKTICK = "BACKTICK",     // `
 
   EOF = "EOF"

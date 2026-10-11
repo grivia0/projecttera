@@ -15,6 +15,8 @@ export type StatementNode =
   | FunctionDeclNode
   | IfStatementNode
   | WhileStatementNode
+  | ForStatementNode
+  | ForClauseStatementNode
   | SwitchStatementNode
   | ExpressionStatementNode
   | RemoveStatementNode
@@ -46,6 +48,25 @@ export interface IfStatementNode extends ASTNode {
 export interface WhileStatementNode extends ASTNode {
   type: "WhileStatement";
   condition: ExpressionNode;
+  body: StatementNode[] | StatementNode;
+  isInline: boolean;
+}
+
+// Native for-loop: `for x: <iterable> { ... }` or `for i: 0..10 => stmt`
+export interface ForStatementNode extends ASTNode {
+  type: "ForStatement";
+  variable: string;
+  iterable: ExpressionNode;
+  body: StatementNode[] | StatementNode;
+  isInline: boolean;
+}
+
+// C-style for-loop: `for (let i: 0 => int; i < 10; i++) { ... }`
+export interface ForClauseStatementNode extends ASTNode {
+  type: "ForClauseStatement";
+  init: VarDeclNode | ExpressionNode | null;
+  condition: ExpressionNode | null;
+  update: ExpressionNode | null;
   body: StatementNode[] | StatementNode;
   isInline: boolean;
 }
@@ -88,7 +109,8 @@ export type ExpressionNode =
   | AssignmentExprNode
   | ArrayLiteralNode
   | FunctionExprNode
-  | IndexAccessNode;
+  | IndexAccessNode
+  | RangeNode;
 
 export interface LiteralNode extends ASTNode {
   type: "Literal";
@@ -137,6 +159,14 @@ export interface IndexAccessNode extends ASTNode {
   type: "IndexAccess";
   object: ExpressionNode;
   index: ExpressionNode;
+}
+
+// Numeric range literal, e.g. `0..10` (inclusive). Evaluates to an array of ints.
+export interface RangeNode extends ASTNode {
+  type: "Range";
+  start: ExpressionNode;
+  end: ExpressionNode;
+  inclusive: boolean;
 }
 
 export interface MemberExprNode extends ASTNode {
