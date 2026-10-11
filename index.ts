@@ -1,25 +1,39 @@
-import { Lexer } from "./Lexer.js";
-import { Parser } from "./Parser.js";
-import { TypeChecker } from "./TypeChecker.js";
-import { Interpreter } from "./Interpreter.js";
+// Programmatic entry point: runs a Tera program straight from a string and reports
+// failures exactly like the CLI does. Try `npm run build && node dist/index.js`.
+import { exitCodeFor, formatDiagnostic } from "./Errors.js";
+import { runSource } from "./Runner.js";
 
-const code = `
+const demo = `// A short tour of the language: arrays, loops, functions and conditionals.
 let nums: [1, 2, 3] => arr[int]
+nums.add(4)
+print("Array length is:", nums.leng)
+print("Last item is:", nums[nums.leng - 1])
 
-nums.push(4)
-print("Array length is:", nums.length)
-print("Last item is:", nums[3])
+fn double(n: int) => int {
+  return n * 2
+}
+
+let total: 0 => int
+for n: nums {
+  total = total + double(n)
+}
+print("Doubled total:", total)
+
+fn describe(value: int) => string {
+  if (value > 10) {
+    return "big"
+  }
+  return "small"
+}
+print("4 is", describe(4))
+print("16 is", describe(16))
 `;
 
-const lexer = new Lexer(code);
-const tokens = lexer.tokenize();
+const demoName = "<demo>";
 
-const parser = new Parser(tokens);
-const ast = parser.parse();
-
-const typeChecker = new TypeChecker();
-typeChecker.check(ast);
-
-console.log("--- Executing Tera Code ---");
-const interpreter = new Interpreter();
-interpreter.interpret(ast);
+try {
+  runSource(demo);
+} catch (err) {
+  console.error(formatDiagnostic(err, demoName, demo));
+  process.exit(exitCodeFor(err));
+}

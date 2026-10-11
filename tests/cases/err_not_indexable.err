@@ -1,0 +1,5 @@
+[Type Error] Type 'int' is not indexable.
+  --> tests/cases/err_not_indexable.tera:2:8
+  |
+2 | print(n[0])
+  |        ^

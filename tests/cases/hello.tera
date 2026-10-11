@@ -1,0 +1,8 @@
+print("hello, tera")
+print(1 + 2 * 3)
+print("a" + "b")
+
+let flag: true => bool
+if (flag) {
+  print("flag is true")
+}

@@ -1,0 +1,5 @@
+[Type Error] Argument 1 expects type 'arr[int]' but got 'arr[string]'.
+  --> tests/cases/err_merge_element_type.tera:2:17
+  |
+2 | print(nums.merge(["a"]))
+  |                 ^

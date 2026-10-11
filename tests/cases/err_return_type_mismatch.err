@@ -1,0 +1,5 @@
+[Type Error] Cannot return value of type 'string' from a function declared to return 'int'.
+  --> tests/cases/err_return_type_mismatch.tera:2:3
+  |
+2 |   return "text"
+  |   ^

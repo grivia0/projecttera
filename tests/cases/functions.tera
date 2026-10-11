@@ -1,0 +1,25 @@
+fn factorial(n: int) => int {
+  if (n <= 1) {
+    return 1
+  }
+  return n * factorial(n - 1)
+}
+print("5! =", factorial(5))
+
+fn greet(name: string) => string {
+  return "hello, " + name
+}
+print(greet("tera"))
+
+// Function values: an inline `fn` expression stored in a variable.
+let scale: fn(x: int) => int { return x * 2 }
+print("scale(4):", scale(4))
+
+// Nested function capturing an enclosing parameter.
+fn makeAdder(base: int) => int {
+  fn add(value: int) => int {
+    return base + value
+  }
+  return add(1)
+}
+print("addTen(1):", makeAdder(10))

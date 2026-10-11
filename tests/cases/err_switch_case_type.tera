@@ -1,0 +1,5 @@
+let grade: 3 => int
+switch (grade) {
+  case "three":
+    print("three")
+}

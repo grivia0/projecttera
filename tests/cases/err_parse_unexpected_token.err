@@ -1,0 +1,5 @@
+[Parser Error] Unexpected '='.
+  --> tests/cases/err_parse_unexpected_token.tera:1:8
+  |
+1 | let x: = 5 => int
+  |        ^

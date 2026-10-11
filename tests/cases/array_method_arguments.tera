@@ -1,0 +1,6 @@
+// Optional (`T?`) and variadic (`T...`) built-in parameters.
+let nums: [1] => arr[int]
+print("add(4, 5) ->", nums.add(4, 5), "nums:", nums.asString())
+print("slice(1):", nums.slice(1).asString())
+print("join():", nums.join())
+print("splice(2) ->", nums.splice(2).asString(), "nums:", nums.asString())

@@ -1,0 +1,30 @@
+// Documented semantics of the loop constructs.
+
+// 1. The iterable is evaluated exactly once, before the first iteration.
+let calls: 0 => int
+fn bump() => arr[int] {
+  calls = calls + 1
+  return [1, 2]
+}
+for v: bump() {
+  print("v:", v)
+}
+print("iterable evaluations:", calls)
+
+// 2. Each iteration gets a fresh binding for the loop variable, so writing to it
+//    affects only that iteration.
+for w: [1, 2] {
+  w = 99
+  print("w:", w)
+}
+
+// 3. A descending range is empty: ranges always count upwards.
+for d: 5..1 {
+  print("unreachable:", d)
+}
+print("descending range done")
+
+// 4. `0..n - 1` already binds as `0..(n - 1)`; parentheses make it explicit.
+let n: 3 => int
+for r: 0..n - 1 => print("r:", r)
+for padded: 0..(n - 1) => print("padded:", padded)

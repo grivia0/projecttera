@@ -1,0 +1,5 @@
+[Type Error] Cannot iterate over non-array type 'int'.
+  --> tests/cases/err_for_iterable_not_array.tera:1:8
+  |
+1 | for x: 5 {
+  |        ^

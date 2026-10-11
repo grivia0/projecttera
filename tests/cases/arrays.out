@@ -1,0 +1,19 @@
+leng: 4
+isEmpty: false
+first: 1
+last: 4
+at(0): 1
+get(3): 4
+join: 1-2-3-4
+asString: 1,2,3,4
+findIndex(>2): 2
+find(>2): 3
+rmv(0): 1 nums: 2,3,4
+shift: 2 nums: 3,4
+rmShift: 3 nums: 4
+merge: 4,9,8
+copyIn: 4,9,8
+flat: 4
+slice(0, 1): 4
+splice(0, 1, 42): 4 nums: 42
+indexed write: 0,7,0

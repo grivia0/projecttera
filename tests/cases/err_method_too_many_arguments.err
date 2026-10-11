@@ -1,0 +1,5 @@
+[Type Error] 'join' expects between 0 and 1 argument(s) but got 2.
+  --> tests/cases/err_method_too_many_arguments.tera:2:16
+  |
+2 | print(nums.join(", ", "extra"))
+  |                ^

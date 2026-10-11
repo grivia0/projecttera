@@ -1,0 +1,5 @@
+[Type Error] Type 'arr[int]' has no member 'length'. Available members: leng, isEmpty, first, last, asString, at, get, rmv, shift, rmShift, add, join, find, findIndex, merge, copyIn, flat, slice, splice.
+  --> tests/cases/err_unknown_member.tera:2:12
+  |
+2 | print(nums.length)
+  |            ^

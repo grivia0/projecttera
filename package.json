@@ -10,7 +10,12 @@
   "scripts": {
     "build": "tsc",
     "start": "node ./dist/bin.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "pretest": "npm run build",
+    "test": "node tests/run.mjs"
   },
-  "keywords": []
+  "keywords": [],
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^5.9.3"
+  }
 }

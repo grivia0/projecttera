@@ -1,0 +1,5 @@
+[Parser Error] Expected ';' after for-loop initializer. Got 'i'
+  --> tests/cases/err_parse_for_initializer_semicolon.tera:1:22
+  |
+1 | for (let i: 0 => int i < 3; i++) {
+  |                      ^

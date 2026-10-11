@@ -66,9 +66,15 @@ export enum TokenType {
   EOF = "EOF"
 }
 
-export interface Token {
+// A 1-based position inside a source file. Tokens and AST nodes both carry one so
+// every stage (parser, type checker, interpreter) can report where a problem is.
+export interface SourceLocation {
+  line: number;
+  column: number;
+}
+
+export interface Token extends SourceLocation {
   type: TokenType;
   lexeme: string;
   value?: any;
-  line: number;
 }

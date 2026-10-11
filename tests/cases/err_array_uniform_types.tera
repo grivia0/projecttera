@@ -1,0 +1,1 @@
+let mixed: [1, "two"] => arr[int]

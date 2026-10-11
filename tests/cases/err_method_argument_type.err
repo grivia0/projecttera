@@ -1,0 +1,5 @@
+[Type Error] Argument 1 expects type 'int' but got 'string'.
+  --> tests/cases/err_method_argument_type.tera:2:9
+  |
+2 | nums.add("four")
+  |         ^

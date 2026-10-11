@@ -1,4 +1,6 @@
 import * as fs from "fs";
+import type { SourceLocation } from "./TokenType.js";
+import { RuntimeError } from "./Errors.js";
 import type {
   ProgramNode,
   StatementNode,
@@ -28,26 +30,28 @@ export class Environment {
     this.variables.set(name, value);
   }
 
-  public get(name: string): any {
+  // `loc` is threaded through so a runtime failure can point at the source position of
+  // the expression that read or wrote the variable.
+  public get(name: string, loc?: SourceLocation): any {
     if (this.variables.has(name)) {
       return this.variables.get(name);
     }
     if (this.parent) {
-      return this.parent.get(name);
+      return this.parent.get(name, loc);
     }
-    throw new Error(`[Runtime Error] Undefined variable '${name}'`);
+    throw new RuntimeError(`Undefined variable '${name}'`, loc);
   }
 
-  public assign(name: string, value: any): void {
+  public assign(name: string, value: any, loc?: SourceLocation): void {
     if (this.variables.has(name)) {
       this.variables.set(name, value);
       return;
     }
     if (this.parent) {
-      this.parent.assign(name, value);
+      this.parent.assign(name, value, loc);
       return;
     }
-    throw new Error(`[Runtime Error] Cannot assign to undefined variable '${name}'`);
+    throw new RuntimeError(`Cannot assign to undefined variable '${name}'`, loc);
   }
 }
 
@@ -138,7 +142,7 @@ export class Interpreter {
       case "ContinueStatement":
         throw new ContinueSignal();
       default:
-        throw new Error(`[Runtime Error] Unknown statement type: ${(stmt as any).type}`);
+        throw new RuntimeError(`Unknown statement type: ${(stmt as any).type}`, (stmt as any).loc);
     }
   }
 
@@ -149,19 +153,19 @@ export class Interpreter {
 
   private executeRemoveStatement(node: { target: ExpressionNode }, env: Environment): void {
     if (node.target.type !== "IndexAccess") {
-      throw new Error(`[Runtime Error] Target of 'rm' statement must be an index access.`);
+      throw new RuntimeError(`Target of 'rm' statement must be an index access.`, node.target.loc);
     }
     const targetObj = this.evaluate(node.target.object, env);
     const indexVal = this.evaluate(node.target.index, env);
     if (!Array.isArray(targetObj)) {
-      throw new Error(`[Runtime Error] Cannot remove element from non-array target.`);
+      throw new RuntimeError(`Cannot remove element from non-array target.`, node.target.loc);
     }
     targetObj.splice(indexVal, 1);
   }
 
   private executeFunctionDecl(node: FunctionDeclNode, env: Environment): void {
     if (!node.name) {
-      throw new Error("[Runtime Error] Anonymous function declaration missing name");
+      throw new RuntimeError("Anonymous function declaration missing name", node.loc);
     }
 
     const fnClosure = (...args: any[]) => {
@@ -229,7 +233,7 @@ export class Interpreter {
   private executeForStatement(node: ForStatementNode, env: Environment): void {
     const iterable = this.evaluate(node.iterable, env);
     if (!Array.isArray(iterable)) {
-      throw new Error(`[Runtime Error] Cannot iterate over non-array value.`);
+      throw new RuntimeError(`Cannot iterate over non-array value.`, node.iterable.loc);
     }
 
     for (const item of iterable) {
@@ -310,7 +314,7 @@ export class Interpreter {
       case "Literal":
         return expr.value;
       case "Identifier":
-        return env.get(expr.name);
+        return env.get(expr.name, expr.loc);
       case "ArrayLiteral":
         return expr.elements.map((el) => this.evaluate(el, env));
       case "IndexAccess": {
@@ -340,7 +344,7 @@ export class Interpreter {
           if (prop === "at") return (idx: number) => obj.at(idx);
           if (prop === "get") return (idx: number) => {
             if (idx < 0 || idx >= obj.length) {
-              throw new Error(`[Runtime Error] Index out of bounds for array of length ${obj.length}`);
+              throw new RuntimeError(`Index out of bounds for array of length ${obj.length}`, expr.loc);
             }
             return obj[idx];
           };
@@ -350,6 +354,7 @@ export class Interpreter {
           if (prop === "rmv") return (idx: number) => obj.splice(idx, 1)[0];
           if (prop === "add") return (...args: any[]) => obj.push(...args);
           if (prop === "shift") return () => obj.shift();
+          // `rmShift` is an alias of `shift`: both remove and return the first element.
           if (prop === "rmShift") return () => obj.shift();
           if (prop === "merge") return (other: any[]) => obj.concat(other);
           if (prop === "copyIn") return (other: any[]) => [...obj, ...other];
@@ -364,6 +369,7 @@ export class Interpreter {
           if (prop === "isEmpty") return obj.length === 0;
           if (prop === "first") return obj[0];
           if (prop === "last") return obj.length > 0 ? obj[obj.length - 1] : undefined;
+          if (prop === "asString") return () => String(obj);
         }
 
         return obj ? obj[prop] : undefined;
@@ -371,7 +377,7 @@ export class Interpreter {
       case "AssignmentExpr": {
         const value = this.evaluate(expr.value, env);
         if (expr.target.type === "Identifier") {
-          env.assign(expr.target.name, value);
+          env.assign(expr.target.name, value, expr.target.loc);
         } else if (expr.target.type === "IndexAccess") {
           const targetObj = this.evaluate(expr.target.object, env);
           const indexVal = this.evaluate(expr.target.index, env);
@@ -380,7 +386,7 @@ export class Interpreter {
           const targetObj = this.evaluate(expr.target.object, env);
           targetObj[expr.target.property] = value;
         } else {
-          throw new Error(`[Runtime Error] Invalid assignment target.`);
+          throw new RuntimeError(`Invalid assignment target.`, (expr.target as any).loc);
         }
         return value;
       }
@@ -394,7 +400,7 @@ export class Interpreter {
         if (typeof callee === "function") {
           return callee(...args);
         }
-        throw new Error(`[Runtime Error] Target is not callable`);
+        throw new RuntimeError(`Target is not callable`, expr.loc);
       }
       case "FunctionExpr": {
         const fnExpr = expr as any;
@@ -421,7 +427,7 @@ export class Interpreter {
         };
       }
       default:
-        throw new Error(`[Runtime Error] Unknown expression type: ${(expr as any).type}`);
+        throw new RuntimeError(`Unknown expression type: ${(expr as any).type}`, (expr as any).loc);
     }
   }
 
@@ -454,14 +460,14 @@ export class Interpreter {
       case "!=": return left != right;
       case "===": return left === right;
       default:
-        throw new Error(`[Runtime Error] Unsupported operator: ${op}`);
+        throw new RuntimeError(`Unsupported operator: ${op}`, leftExpr.loc);
     }
   }
 
   private evaluateUnary(op: string, rightExpr: ExpressionNode, env: Environment, isPostfix?: boolean): any {
     if (op === "++" || op === "--") {
       if (rightExpr.type !== "Identifier" && rightExpr.type !== "IndexAccess" && rightExpr.type !== "MemberExpr") {
-        throw new Error(`[Runtime Error] Invalid target for increment/decrement`);
+        throw new RuntimeError(`Invalid target for increment/decrement`, rightExpr.loc);
       }
 
       const currentValue = this.evaluate(rightExpr, env);
@@ -489,7 +495,7 @@ export class Interpreter {
       case "+": return +right;
       case "!": return !right;
       default:
-        throw new Error(`[Runtime Error] Unsupported unary operator: ${op}`);
+        throw new RuntimeError(`Unsupported unary operator: ${op}`, rightExpr.loc);
     }
   }
 }

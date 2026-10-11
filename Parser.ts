@@ -1,4 +1,5 @@
-import { TokenType, type Token } from "./TokenType.js";
+import { TokenType, type SourceLocation, type Token } from "./TokenType.js";
+import { ParseError } from "./Errors.js";
 import type {
   ProgramNode,
   StatementNode,
@@ -9,6 +10,7 @@ import type {
   SwitchStatementNode,
   SwitchCaseNode,
   FunctionDeclNode,
+  RemoveStatementNode,
 } from "./AST.js";
 
 export class Parser {
@@ -24,7 +26,13 @@ export class Parser {
     while (!this.isAtEnd()) {
       body.push(this.statement());
     }
-    return { type: "Program", body };
+    return { type: "Program", body, loc: { line: 1, column: 1 } };
+  }
+
+  // Every AST node is anchored to the token that introduced it, so later stages can
+  // report a line and column instead of just a message.
+  private at(token: Token): SourceLocation {
+    return { line: token.line, column: token.column };
   }
 
   private statement(): StatementNode {
@@ -35,37 +43,43 @@ export class Parser {
     if (this.match(TokenType.FOR)) return this.forStatement();
     if (this.match(TokenType.SWITCH)) return this.switchStatement();
     if (this.match(TokenType.BREAK)) {
+      const keyword = this.previous();
       this.optionalSemicolon();
-      return { type: "BreakStatement" };
+      return { type: "BreakStatement", loc: this.at(keyword) };
     }
     if (this.match(TokenType.CONTINUE)) {
+      const keyword = this.previous();
       this.optionalSemicolon();
-      return { type: "ContinueStatement" };
+      return { type: "ContinueStatement", loc: this.at(keyword) };
     }
-    if (this.match(TokenType.RETURN)) return this.returnStatement();
+    if (this.match(TokenType.RETURN)) return this.returnStatement(this.previous());
 
     // Catch 'rm x[0]' statement
     if (this.check(TokenType.IDENTIFIER) && this.peek().lexeme === "rm") {
-      this.advance(); // consume "rm"
-      return this.removeStatement();
+      const keyword = this.advance(); // consume "rm"
+      return this.removeStatement(keyword);
     }
 
     return this.expressionStatement();
   }
 
-  private removeStatement(): StatementNode {
+  private removeStatement(keyword: Token): RemoveStatementNode {
     const target = this.expression();
     if (target.type !== "IndexAccess") {
-      throw new Error(`[Parser Error] Expected index access expression after 'rm', got '${target.type}'.`);
+      throw new ParseError(
+        `Expected index access expression after 'rm', got '${target.type}'.`,
+        this.at(keyword)
+      );
     }
     this.optionalSemicolon();
     return {
       type: "RemoveStatement",
       target,
-    } as any; 
+      loc: this.at(keyword),
+    };
   }
 
-  private varDeclaration(): VarDeclNode {
+  private varDeclaration(expectTerminator: boolean = true): VarDeclNode {
     const nameToken = this.consume(TokenType.IDENTIFIER, "Expected variable name.");
     let value: ExpressionNode | undefined = undefined;
     let targetType: string | undefined = undefined;
@@ -81,12 +95,16 @@ export class Parser {
       }
     }
 
-    this.optionalSemicolon();
+    if (expectTerminator) {
+      this.optionalSemicolon();
+    }
+
     return {
       type: "VarDecl",
       identifier: nameToken.lexeme,
       value,
       targetType,
+      loc: this.at(nameToken),
     };
   }
 
@@ -115,7 +133,7 @@ export class Parser {
     }
     this.consume(TokenType.RBRACE, "Expected '}' after function body.");
 
-    return { type: "FunctionDecl", name: nameToken.lexeme, params, returnType, body };
+    return { type: "FunctionDecl", name: nameToken.lexeme, params, returnType, body, loc: this.at(nameToken) };
   }
 
   private ifStatement(): IfStatementNode {
@@ -153,7 +171,7 @@ export class Parser {
       }
     }
 
-    return { type: "IfStatement", condition, thenBranch, elseBranch, isInline };
+    return { type: "IfStatement", condition, thenBranch, elseBranch, isInline, loc: condition.loc };
   }
 
   private whileStatement(): WhileStatementNode {
@@ -180,7 +198,7 @@ export class Parser {
       body = this.block();
     }
 
-    return { type: "WhileStatement", condition, body, isInline };
+    return { type: "WhileStatement", condition, body, isInline, loc: condition.loc };
   }
 
   // for <ident> : <iterable> (=> stmt | { ... })
@@ -201,18 +219,22 @@ export class Parser {
       iterable,
       body,
       isInline,
+      loc: this.at(nameToken),
     };
   }
 
   // for ( [let decl | expr] ; [cond] ; [update] ) (=> stmt | { ... })
   private forClauseStatement(): StatementNode {
-    this.consume(TokenType.LPAREN, "Expected '(' after 'for'.");
+    const openParen = this.consume(TokenType.LPAREN, "Expected '(' after 'for'.");
 
     let init: VarDeclNode | ExpressionNode | null = null;
     if (!this.check(TokenType.SEMICOLON)) {
-      init = this.match(TokenType.LET) ? this.varDeclaration() : this.expression();
+      init = this.match(TokenType.LET) ? this.varDeclaration(false) : this.expression();
     }
-    this.optionalSemicolon();
+    // The initializer has to be terminated by its own ';'. The declaration parser is
+    // told not to consume it (see `expectTerminator`) so a missing one is a clear
+    // error instead of the condition silently swallowing the next token.
+    this.consume(TokenType.SEMICOLON, "Expected ';' after for-loop initializer.");
 
     let condition: ExpressionNode | null = null;
     if (!this.check(TokenType.SEMICOLON)) {
@@ -227,7 +249,15 @@ export class Parser {
     this.consume(TokenType.RPAREN, "Expected ')' after for-loop clauses.");
 
     const { body, isInline } = this.loopBody();
-    return { type: "ForClauseStatement", init, condition, update, body, isInline };
+    return {
+      type: "ForClauseStatement",
+      init,
+      condition,
+      update,
+      body,
+      isInline,
+      loc: this.at(openParen),
+    };
   }
 
   // Shared body parser for both loop forms: inline `=> stmt` or `{ ... }`.
@@ -248,6 +278,7 @@ export class Parser {
     const cases: SwitchCaseNode[] = [];
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
       if (this.match(TokenType.CASE)) {
+        const caseToken = this.previous();
         const test = this.expression();
         this.consume(TokenType.COLON, "Expected ':' after case value.");
         const consequent: StatementNode[] = [];
@@ -258,8 +289,9 @@ export class Parser {
           }
           consequent.push(this.statement());
         }
-        cases.push({ type: "SwitchCase", test, consequent });
+        cases.push({ type: "SwitchCase", test, consequent, loc: this.at(caseToken) });
       } else if (this.match(TokenType.DEFAULT)) {
+        const defaultToken = this.previous();
         this.consume(TokenType.COLON, "Expected ':' after 'default'.");
         const consequent: StatementNode[] = [];
         while (!this.check(TokenType.CASE) && !this.check(TokenType.RBRACE)) {
@@ -269,21 +301,21 @@ export class Parser {
           }
           consequent.push(this.statement());
         }
-        cases.push({ type: "SwitchCase", test: null, consequent });
+        cases.push({ type: "SwitchCase", test: null, consequent, loc: this.at(defaultToken) });
       }
     }
 
     this.consume(TokenType.RBRACE, "Expected '}' after switch cases.");
-    return { type: "SwitchStatement", discriminant, cases };
+    return { type: "SwitchStatement", discriminant, cases, loc: discriminant.loc };
   }
 
-  private returnStatement(): StatementNode {
+  private returnStatement(keyword: Token): StatementNode {
     let value: ExpressionNode | undefined = undefined;
     if (!this.check(TokenType.SEMICOLON) && !this.check(TokenType.RBRACE)) {
       value = this.expression();
     }
     this.optionalSemicolon();
-    return { type: "ReturnStatement", value };
+    return { type: "ReturnStatement", value, loc: this.at(keyword) };
   }
 
   private block(): StatementNode[] {
@@ -298,7 +330,7 @@ export class Parser {
   private expressionStatement(): StatementNode {
     const expr = this.expression();
     this.optionalSemicolon();
-    return { type: "ExpressionStatement", expression: expr };
+    return { type: "ExpressionStatement", expression: expr, loc: expr.loc };
   }
 
   private expression(): ExpressionNode {
@@ -317,10 +349,11 @@ export class Parser {
           type: "AssignmentExpr",
           target: expr,
           value,
+          loc: this.at(equalsToken),
         };
       }
 
-      throw new Error(`[Line ${equalsToken.line}] Invalid assignment target.`);
+      throw new ParseError("Invalid assignment target.", this.at(equalsToken));
     }
 
     return expr;
@@ -332,7 +365,7 @@ export class Parser {
     while (this.match(TokenType.OR_OR)) {
       const operator = this.previous().lexeme;
       const right = this.logicalAnd();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -344,7 +377,7 @@ export class Parser {
     while (this.match(TokenType.AND_AND)) {
       const operator = this.previous().lexeme;
       const right = this.range();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -355,7 +388,7 @@ export class Parser {
 
     if (this.match(TokenType.DOT_DOT)) {
       const end = this.equality();
-      return { type: "Range", start: expr, end, inclusive: true };
+      return { type: "Range", start: expr, end, inclusive: true, loc: expr.loc };
     }
 
     return expr;
@@ -367,7 +400,7 @@ export class Parser {
     while (this.match(TokenType.EQUALS, TokenType.STRICT_EQUALS, TokenType.NOT_EQUALS)) {
       const operator = this.previous().lexeme;
       const right = this.comparison();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -379,7 +412,7 @@ export class Parser {
     while (this.match(TokenType.GREATER, TokenType.LESS, TokenType.GREATER_EQUALS, TokenType.LESS_EQUALS)) {
       const operator = this.previous().lexeme;
       const right = this.term();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -391,7 +424,7 @@ export class Parser {
     while (this.match(TokenType.PLUS, TokenType.MINUS)) {
       const operator = this.previous().lexeme;
       const right = this.factor();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -403,7 +436,7 @@ export class Parser {
     while (this.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
       const operator = this.previous().lexeme;
       const right = this.exponentiation();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -415,7 +448,7 @@ export class Parser {
     while (this.match(TokenType.STAR_STAR)) {
       const operator = this.previous().lexeme;
       const right = this.exponentiation();
-      expr = { type: "BinaryExpr", left: expr, operator, right };
+      expr = { type: "BinaryExpr", left: expr, operator, right, loc: expr.loc };
     }
 
     return expr;
@@ -423,9 +456,15 @@ export class Parser {
 
   private unary(): ExpressionNode {
     if (this.match(TokenType.MINUS, TokenType.PLUS, TokenType.PLUS_PLUS, TokenType.MINUS_MINUS, TokenType.BANG)) {
-      const operator = this.previous().lexeme;
+      const operatorToken = this.previous();
       const right = this.unary();
-      return { type: "UnaryExpr", operator, right, isPostfix: false };
+      return {
+        type: "UnaryExpr",
+        operator: operatorToken.lexeme,
+        right,
+        isPostfix: false,
+        loc: this.at(operatorToken),
+      };
     }
 
     return this.call();
@@ -437,8 +476,9 @@ export class Parser {
     while (true) {
       if (this.match(TokenType.DOT)) {
         const propToken = this.consume(TokenType.IDENTIFIER, "Expected property name after '.'.");
-        expr = { type: "MemberExpr", object: expr, property: propToken.lexeme };
+        expr = { type: "MemberExpr", object: expr, property: propToken.lexeme, loc: this.at(propToken) };
       } else if (this.match(TokenType.LPAREN)) {
+        const openParen = this.previous();
         const args: ExpressionNode[] = [];
         if (!this.check(TokenType.RPAREN)) {
           do {
@@ -446,17 +486,24 @@ export class Parser {
           } while (this.match(TokenType.COMMA));
         }
         this.consume(TokenType.RPAREN, "Expected ')' after call arguments.");
-        expr = { type: "CallExpr", callee: expr, arguments: args };
+        expr = { type: "CallExpr", callee: expr, arguments: args, loc: this.at(openParen) };
       } else if (this.match(TokenType.LBRACKET)) {
+        const openBracket = this.previous();
         const index = this.expression();
         this.consume(TokenType.RBRACKET, "Expected ']' after index.");
-        expr = { type: "IndexAccess", object: expr, index };
+        expr = { type: "IndexAccess", object: expr, index, loc: this.at(openBracket) };
       } else if (this.match(TokenType.PLUS_PLUS, TokenType.MINUS_MINUS)) {
-        const operator = this.previous().lexeme;
+        const operatorToken = this.previous();
         if (expr.type !== "Identifier" && expr.type !== "MemberExpr" && expr.type !== "IndexAccess") {
-          throw new Error(`[Parser Error] Invalid target for increment/decrement.`);
+          throw new ParseError("Invalid target for increment/decrement.", this.at(operatorToken));
         }
-        expr = { type: "UnaryExpr", operator, right: expr, isPostfix: true };
+        expr = {
+          type: "UnaryExpr",
+          operator: operatorToken.lexeme,
+          right: expr,
+          isPostfix: true,
+          loc: this.at(operatorToken),
+        };
       } else {
         break;
       }
@@ -467,24 +514,38 @@ export class Parser {
 
   private primary(): ExpressionNode {
     if (this.match(TokenType.NUMBER)) {
-      return { type: "Literal", value: this.previous().value, rawType: "number" };
+      const token = this.previous();
+      return { type: "Literal", value: token.value, rawType: "number", loc: this.at(token) };
     }
     if (this.match(TokenType.STRING)) {
-      return { type: "Literal", value: this.previous().value, rawType: "string" };
+      const token = this.previous();
+      return { type: "Literal", value: token.value, rawType: "string", loc: this.at(token) };
     }
     if (this.match(TokenType.BOOLEAN)) {
-      return { type: "Literal", value: this.previous().lexeme === "true", rawType: "boolean" };
+      const token = this.previous();
+      return { type: "Literal", value: token.lexeme === "true", rawType: "boolean", loc: this.at(token) };
     }
     if (this.match(TokenType.UNDEFINED)) {
-      return { type: "Literal", value: undefined, rawType: "undefined" };
+      return { type: "Literal", value: undefined, rawType: "undefined", loc: this.at(this.previous()) };
     }
     if (this.match(TokenType.IDENTIFIER)) {
-      return { type: "Identifier", name: this.previous().lexeme };
+      const token = this.previous();
+      return { type: "Identifier", name: token.lexeme, loc: this.at(token) };
     }
     if (this.match(TokenType.FN)) {
-      return this.functionExpression();
+      return this.functionExpression(this.previous());
+    }
+    if (this.match(TokenType.LPAREN)) {
+      // Grouping: `(a + b)`, `0..(n - 1)`. The inner node keeps its own contents and
+      // simply reports the position of the opening parenthesis.
+      const openParen = this.previous();
+      const grouped = this.expression();
+      this.consume(TokenType.RPAREN, "Expected ')' after expression.");
+      grouped.loc = this.at(openParen);
+      return grouped;
     }
     if (this.match(TokenType.LBRACKET)) {
+      const openBracket = this.previous();
       const elements: ExpressionNode[] = [];
       if (!this.check(TokenType.RBRACKET)) {
         do {
@@ -492,13 +553,13 @@ export class Parser {
         } while (this.match(TokenType.COMMA));
       }
       this.consume(TokenType.RBRACKET, "Expected ']' after array elements.");
-      return { type: "ArrayLiteral", elements };
+      return { type: "ArrayLiteral", elements, loc: this.at(openBracket) };
     }
 
-    throw new Error(`[Parser Error] Unexpected token '${this.peek().lexeme}' on line ${this.peek().line}`);
+    throw new ParseError(`Unexpected ${this.describe(this.peek())}.`, this.at(this.peek()));
   }
 
-  private functionExpression(): ExpressionNode {
+  private functionExpression(fnToken: Token): ExpressionNode {
     this.consume(TokenType.LPAREN, "Expected '(' after 'fn'.");
 
     const params: { name: string; paramType: string }[] = [];
@@ -522,7 +583,7 @@ export class Parser {
     }
     this.consume(TokenType.RBRACE, "Expected '}' after function body.");
 
-    return { type: "FunctionExpr", params, returnType, body } as any;
+    return { type: "FunctionExpr", params, returnType, body, loc: this.at(fnToken) };
   }
 
   private checkTypeAnnotation(): boolean {
@@ -552,7 +613,7 @@ export class Parser {
     if (this.check(TokenType.IDENTIFIER)) {
       return this.advance().lexeme;
     }
-    throw new Error(`[Parser Error] Expected type annotation on line ${this.peek().line}`);
+    throw new ParseError(`Expected a type annotation, got ${this.describe(this.peek())}.`, this.at(this.peek()));
   }
 
   // Helpers
@@ -590,7 +651,12 @@ export class Parser {
 
   private consume(type: TokenType, message: string): Token {
     if (this.check(type)) return this.advance();
-    throw new Error(`[Line ${this.peek().line}] ${message} Got '${this.peek().lexeme}'`);
+    throw new ParseError(`${message} Got ${this.describe(this.peek())}`, this.at(this.peek()));
+  }
+
+  // Human readable rendering of a token for diagnostics: end of file has no lexeme.
+  private describe(token: Token): string {
+    return token.type === TokenType.EOF ? "end of file" : `'${token.lexeme}'`;
   }
 
   private optionalSemicolon(): void {

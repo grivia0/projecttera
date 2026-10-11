@@ -1,0 +1,5 @@
+[Lexer Error] Unterminated string literal.
+  --> tests/cases/err_lex_unterminated_string.tera:1:7
+  |
+1 | print("abc)
+  |       ^

@@ -1,0 +1,5 @@
+[Type Error] Cannot assign value of type 'string' to target type 'int' for variable 'text'.
+  --> tests/cases/err_annotation_mismatch.tera:1:5
+  |
+1 | let text: "hello" => int
+  |     ^

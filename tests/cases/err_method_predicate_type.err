@@ -1,0 +1,5 @@
+[Type Error] Argument 1 expects type 'fn(int)->boolean' but got 'int'.
+  --> tests/cases/err_method_predicate_type.tera:2:16
+  |
+2 | print(nums.find(3))
+  |                ^

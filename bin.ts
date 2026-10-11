@@ -2,44 +2,59 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Lexer } from "./Lexer.js";
-import { Parser } from "./Parser.js";
-import { TypeChecker } from "./TypeChecker.js";
-import { Interpreter } from "./Interpreter.js";
+import { EXIT_USAGE_ERROR, exitCodeFor, formatDiagnostic } from "./Errors.js";
+import { runSource } from "./Runner.js";
+
+const USAGE = [
+  "Usage: tera <filename.tera>",
+  "",
+  "Runs a Tera source file: it is lexed, parsed, type checked and then interpreted.",
+  "",
+  "Options:",
+  "  -h, --help    Show this message",
+  "",
+  "Exit codes: 0 success, 1 the program was invalid, 2 bad usage, 70 interpreter bug.",
+].join("\n");
 
 const args = process.argv.slice(2);
 const filePath = args[0];
 
+if (filePath === "-h" || filePath === "--help") {
+  console.log(USAGE);
+  process.exit(0);
+}
+
 if (!filePath) {
-  console.log("Usage: tera <filename.tera>");
-  process.exit(1);
+  // Usage problems go to stderr with their own exit code, so scripts can tell "I called
+  // this wrong" apart from "the program I asked for had an error".
+  console.error(USAGE);
+  process.exit(EXIT_USAGE_ERROR);
 }
 
-const fullPath = path.resolve(filePath);
-
-if (!fs.existsSync(fullPath)) {
-  console.error(`Error: File not found '${filePath}'`);
-  process.exit(1);
-}
-
-const code = fs.readFileSync(fullPath, "utf-8");
+const code = readProgram(filePath);
 
 try {
-  // 1. Tokenize source code string into Token[]
-  const lexer = new Lexer(code);
-  const tokens = lexer.tokenize();
+  runSource(code);
+} catch (err) {
+  // Diagnostics are rendered against the path exactly as the user typed it, so the
+  // output stays stable no matter how the interpreter was invoked.
+  console.error(formatDiagnostic(err, filePath, code));
+  process.exit(exitCodeFor(err));
+}
 
-  // 2. Pass Token[] to Parser
-  const parser = new Parser(tokens);
-  const ast = parser.parse();
+function readProgram(file: string): string {
+  const fullPath = path.resolve(file);
 
-  // 3. TypeCheck and Interpret AST
-  const typeChecker = new TypeChecker();
-  typeChecker.check(ast);
+  if (!fs.existsSync(fullPath)) {
+    console.error(`Error: File not found '${file}'`);
+    process.exit(EXIT_USAGE_ERROR);
+  }
 
-  const interpreter = new Interpreter();
-  interpreter.interpret(ast);
-} catch (err: any) {
-  console.error(err.message);
-  process.exit(1);
+  try {
+    return fs.readFileSync(fullPath, "utf-8");
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`Error: Cannot read '${file}' (${reason})`);
+    process.exit(EXIT_USAGE_ERROR);
+  }
 }

@@ -1,0 +1,14 @@
+fruit: apple
+fruit: banana
+i: 0
+i: 1
+i: 2
+i: 3
+inline j: 0
+inline j: 1
+inline j: 2
+k: 0
+k: 2
+sum: 6
+cell: 11
+cell: 12

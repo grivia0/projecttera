@@ -1,0 +1,24 @@
+// The same tour that index.ts runs through the embedding API.
+let nums: [1, 2, 3] => arr[int]
+nums.add(4)
+print("Array length is:", nums.leng)
+print("Last item is:", nums[nums.leng - 1])
+
+fn double(n: int) => int {
+  return n * 2
+}
+
+let total: 0 => int
+for n: nums {
+  total = total + double(n)
+}
+print("Doubled total:", total)
+
+fn describe(value: int) => string {
+  if (value > 10) {
+    return "big"
+  }
+  return "small"
+}
+print("4 is", describe(4))
+print("16 is", describe(16))

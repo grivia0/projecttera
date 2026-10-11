@@ -1,0 +1,5 @@
+[Type Error] 'add' expects at least 1 argument(s) but got 0.
+  --> tests/cases/err_method_variadic_minimum.tera:2:9
+  |
+2 | nums.add()
+  |         ^

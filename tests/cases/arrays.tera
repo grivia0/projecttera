@@ -1,0 +1,28 @@
+// Built-in members of arr[T].
+let nums: [1, 2, 3] => arr[int]
+nums.add(4)
+print("leng:", nums.leng)
+print("isEmpty:", nums.isEmpty)
+print("first:", nums.first)
+print("last:", nums.last)
+print("at(0):", nums.at(0))
+print("get(3):", nums.get(3))
+print("join:", nums.join("-"))
+print("asString:", nums.asString())
+print("findIndex(>2):", nums.findIndex(fn(v: int) => bool { return v > 2 }))
+print("find(>2):", nums.find(fn(v: int) => bool { return v > 2 }))
+
+print("rmv(0):", nums.rmv(0), "nums:", nums.asString())
+print("shift:", nums.shift(), "nums:", nums.asString())
+print("rmShift:", nums.rmShift(), "nums:", nums.asString())
+
+let more: [9, 8] => arr[int]
+print("merge:", nums.merge(more).asString())
+print("copyIn:", nums.copyIn(more).asString())
+print("flat:", nums.flat().asString())
+print("slice(0, 1):", nums.slice(0, 1).asString())
+print("splice(0, 1, 42):", nums.splice(0, 1, 42).asString(), "nums:", nums.asString())
+
+let cells: [0, 0, 0] => arr[int]
+cells[1] = 7
+print("indexed write:", cells.asString())

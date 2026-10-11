@@ -1,0 +1,5 @@
+[Type Error] If statement condition must be a boolean, got 'int'.
+  --> tests/cases/err_condition_not_boolean.tera:1:5
+  |
+1 | if (1) {
+  |     ^

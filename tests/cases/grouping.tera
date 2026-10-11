@@ -1,0 +1,8 @@
+// Grouping parentheses are honoured wherever an expression is expected.
+let n: 5 => int
+print("(n - 1) * 2 =", (n - 1) * 2)
+print("n + (2 * 3) =", n + (2 * 3))
+print("(1 + 2) * (3 + 4) =", (1 + 2) * (3 + 4))
+for i: 0..(n - 2) {
+  print("i:", i)
+}

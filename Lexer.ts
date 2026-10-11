@@ -1,4 +1,5 @@
-import { type Token, TokenType } from "./TokenType.js";
+import { type SourceLocation, type Token, TokenType } from "./TokenType.js";
+import { LexerError } from "./Errors.js";
 
 export class Lexer {
   private source: string;
@@ -6,6 +7,11 @@ export class Lexer {
   private start: number = 0;
   private current: number = 0;
   private line: number = 1;
+  private column: number = 1;
+  // Position of the first character of the token being scanned, used to anchor
+  // both the token and any diagnostic reported for it.
+  private startLine: number = 1;
+  private startColumn: number = 1;
 
   private static keywords: Record<string, TokenType> = {
     let: TokenType.LET,
@@ -37,10 +43,12 @@ export class Lexer {
   public tokenize(): Token[] {
     while (!this.isAtEnd()) {
       this.start = this.current;
+      this.startLine = this.line;
+      this.startColumn = this.column;
       this.scanToken();
     }
 
-    this.tokens.push({ type: TokenType.EOF, lexeme: "", line: this.line });
+    this.tokens.push({ type: TokenType.EOF, lexeme: "", line: this.line, column: this.column });
     return this.tokens;
   }
 
@@ -92,14 +100,14 @@ export class Lexer {
         if (this.match("&")) {
           this.addToken(TokenType.AND_AND);
         } else {
-          console.error(`[Line ${this.line}] Error: Unexpected character '&' (did you mean '&&'?)`);
+          throw new LexerError("Unexpected character '&' (did you mean '&&'?)", this.location());
         }
         break;
       case "|":
         if (this.match("|")) {
           this.addToken(TokenType.OR_OR);
         } else {
-          console.error(`[Line ${this.line}] Error: Unexpected character '|' (did you mean '||'?)`);
+          throw new LexerError("Unexpected character '|' (did you mean '||'?)", this.location());
         }
         break;
 
@@ -124,7 +132,6 @@ export class Lexer {
         } else if (this.match("*")) {
           // Multi-line comment: ignore until */
           while (!(this.peek() === "*" && this.peekNext() === "/") && !this.isAtEnd()) {
-            if (this.peek() === "\n") this.line++;
             this.advance();
           }
           this.advance(); // consume '*'
@@ -140,7 +147,7 @@ export class Lexer {
         break; // Ignore whitespace
 
       case "\n":
-        this.line++;
+        // `advance` already moved the cursor to the next line.
         break;
 
       case '"':
@@ -154,7 +161,7 @@ export class Lexer {
         } else if (this.isAlpha(c)) {
           this.identifier();
         } else {
-          console.error(`[Line ${this.line}] Error: Unexpected character '${c}'`);
+          throw new LexerError(`Unexpected character '${c}'.`, this.location());
         }
         break;
     }
@@ -183,13 +190,11 @@ export class Lexer {
 
   private string(quoteType: string): void {
     while (this.peek() !== quoteType && !this.isAtEnd()) {
-      if (this.peek() === "\n") this.line++;
       this.advance();
     }
 
     if (this.isAtEnd()) {
-      console.error(`[Line ${this.line}] Error: Unterminated string.`);
-      return;
+      throw new LexerError("Unterminated string literal.", this.location());
     }
 
     this.advance(); // The closing quote
@@ -199,13 +204,36 @@ export class Lexer {
 
   // Helpers
   private advance(): string {
-    return this.source.charAt(this.current++);
+    const c = this.source.charAt(this.current++);
+    if (c === "\n") {
+      this.line++;
+      this.column = 1;
+    } else {
+      this.column++;
+    }
+    return c;
+  }
+
+  // Position of the token currently being scanned (its first character).
+  private location(): SourceLocation {
+    return { line: this.startLine, column: this.startColumn };
   }
 
   private match(expected: string): boolean {
     if (this.isAtEnd()) return false;
     if (this.source.charAt(this.current) !== expected) return false;
+    // `match` consumes a character directly (it is used for two-character tokens such as
+    // `=>`, `==`, `&&`, `..` and for comment markers), so the position bookkeeping has
+    // to happen here too. Without this the columns of every following token drift by one
+    // character per two-character token.
+    const c = this.source.charAt(this.current);
     this.current++;
+    if (c === "\n") {
+      this.line++;
+      this.column = 1;
+    } else {
+      this.column++;
+    }
     return true;
   }
 
@@ -237,6 +265,8 @@ export class Lexer {
 
   private addToken(type: TokenType, value?: any): void {
     const text = this.source.substring(this.start, this.current);
-    this.tokens.push({ type, lexeme: text, value, line: this.line });
+    // Anchor the token at its first character so diagnostics can point at the start
+    // of a multi-character token instead of wherever scanning happened to end.
+    this.tokens.push({ type, lexeme: text, value, line: this.startLine, column: this.startColumn });
   }
 }

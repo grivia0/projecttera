@@ -1,0 +1,5 @@
+[Type Error] Type 'int' is not indexable.
+  --> tests/cases/err_rm_non_array.tera:2:5
+  |
+2 | rm n[0]
+  |     ^

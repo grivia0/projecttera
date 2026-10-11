@@ -1,0 +1,5 @@
+[Type Error] Type 'int' has no members.
+  --> tests/cases/err_member_on_scalar.tera:2:9
+  |
+2 | print(n.foo)
+  |         ^

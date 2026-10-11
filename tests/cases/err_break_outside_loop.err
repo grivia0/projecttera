@@ -1,0 +1,5 @@
+[Type Error] 'break' used outside of a loop or switch.
+  --> tests/cases/err_break_outside_loop.tera:1:1
+  |
+1 | break
+  | ^

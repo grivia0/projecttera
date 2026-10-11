@@ -1,0 +1,5 @@
+[Type Error] Cannot assign value of type 'string' to variable 'count' of type 'int'.
+  --> tests/cases/err_assign_wrong_type.tera:2:1
+  |
+2 | count = "many"
+  | ^

@@ -1,0 +1,29 @@
+let fruits: ["apple", "banana"] => arr[string]
+for fruit: fruits {
+  print("fruit:", fruit)
+}
+
+for i: 0..3 {
+  print("i:", i)
+}
+
+for j: 0..2 => print("inline j:", j)
+
+for (let k: 0 => int; k < 3; k++) {
+  if (k == 1) {
+    continue
+  }
+  print("k:", k)
+}
+
+let sum: 0 => int
+for n: 1..5 {
+  if (n == 4) {
+    break
+  }
+  sum = sum + n
+}
+print("sum:", sum)
+
+let cell: 10 => int
+for c: [1, 2] => print("cell:", cell + c)

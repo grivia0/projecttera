@@ -1,0 +1,6 @@
+leng: 4
+isEmpty: false
+first: t
+last: a
+asString: tera
+empty leng: 0 isEmpty: true

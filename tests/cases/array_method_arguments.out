@@ -1,0 +1,4 @@
+add(4, 5) -> 3 nums: 1,4,5
+slice(1): 4,5
+join(): 1,4,5
+splice(2) -> 5 nums: 1,4

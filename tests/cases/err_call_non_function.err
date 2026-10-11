@@ -1,0 +1,5 @@
+[Type Error] Cannot call non-function target of type 'int'.
+  --> tests/cases/err_call_non_function.tera:2:8
+  |
+2 | print(n(1))
+  |        ^

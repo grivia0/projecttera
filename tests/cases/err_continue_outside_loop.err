@@ -1,0 +1,5 @@
+[Type Error] 'continue' used outside of a loop.
+  --> tests/cases/err_continue_outside_loop.tera:1:1
+  |
+1 | continue
+  | ^

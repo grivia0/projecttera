@@ -1,0 +1,10 @@
+// Built-in members of string.
+let label: "tera" => string
+print("leng:", label.leng)
+print("isEmpty:", label.isEmpty)
+print("first:", label.first)
+print("last:", label.last)
+print("asString:", label.asString())
+
+let blank: "" => string
+print("empty leng:", blank.leng, "isEmpty:", blank.isEmpty)

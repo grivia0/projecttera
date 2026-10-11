@@ -1,6 +1,10 @@
-// Base AST Node
+import type { SourceLocation } from "./TokenType.js";
+
+// Base AST Node. Every node carries the position of the token it was built from so
+// the type checker and interpreter can point at the exact source line/column.
 export interface ASTNode {
   type: string;
+  loc: SourceLocation;
 }
 
 // Program Root

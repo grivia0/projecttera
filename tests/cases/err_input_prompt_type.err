@@ -1,0 +1,5 @@
+[Type Error] Argument 1 expects type 'string' but got 'int'.
+  --> tests/cases/err_input_prompt_type.tera:1:6
+  |
+1 | input(5)
+  |      ^

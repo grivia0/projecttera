@@ -1,0 +1,5 @@
+[Type Error] 'at' expects 1 argument(s) but got 0.
+  --> tests/cases/err_method_arity.tera:2:14
+  |
+2 | print(nums.at())
+  |              ^

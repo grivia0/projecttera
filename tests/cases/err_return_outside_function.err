@@ -1,0 +1,5 @@
+[Type Error] 'return' used outside of a function.
+  --> tests/cases/err_return_outside_function.tera:2:1
+  |
+2 | return 5
+  | ^

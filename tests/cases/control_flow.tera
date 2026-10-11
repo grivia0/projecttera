@@ -1,0 +1,30 @@
+let grade: 3 => int
+if (grade > 2) {
+  print("pass")
+} else {
+  print("fail")
+}
+
+switch (grade) {
+  case 1:
+    print("one")
+    break
+  case 3:
+    print("three")
+    break
+  default:
+    print("other")
+}
+
+let count: 0 => int
+while (count < 3) {
+  count = count + 1
+  if (count == 2) {
+    continue
+  }
+  print("count:", count)
+}
+
+let stack: [1, 2, 3, 4] => arr[int]
+rm stack[0]
+print("after rm:", stack.asString())

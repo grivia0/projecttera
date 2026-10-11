@@ -1,0 +1,5 @@
+[Type Error] Identifier 'a' has already been declared in this scope.
+  --> tests/cases/err_duplicate_parameter.tera:1:4
+  |
+1 | fn add(a: int, a: int) => int {
+  |    ^

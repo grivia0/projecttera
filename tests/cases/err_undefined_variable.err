@@ -1,0 +1,5 @@
+[Type Error] Undefined variable 'total'.
+  --> tests/cases/err_undefined_variable.tera:2:7
+  |
+2 | print(total)
+  |       ^

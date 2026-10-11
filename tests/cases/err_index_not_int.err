@@ -1,0 +1,5 @@
+[Type Error] Array index must be of type 'int', got 'string'.
+  --> tests/cases/err_index_not_int.tera:2:12
+  |
+2 | print(nums["0"])
+  |            ^

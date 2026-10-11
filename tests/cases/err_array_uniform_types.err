@@ -1,0 +1,5 @@
+[Type Error] Array elements must have uniform types. Found 'int' and 'string'.
+  --> tests/cases/err_array_uniform_types.tera:1:12
+  |
+1 | let mixed: [1, "two"] => arr[int]
+  |            ^

@@ -1,0 +1,5 @@
+[Type Error] Cannot assign to read-only member 'leng' of type 'int'.
+  --> tests/cases/err_read_only_member.tera:2:6
+  |
+2 | nums.leng = 4
+  |      ^

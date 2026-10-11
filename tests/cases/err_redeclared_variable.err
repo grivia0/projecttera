@@ -1,0 +1,5 @@
+[Type Error] Identifier 'value' has already been declared in this scope.
+  --> tests/cases/err_redeclared_variable.tera:2:5
+  |
+2 | let value: 2 => int
+  |     ^

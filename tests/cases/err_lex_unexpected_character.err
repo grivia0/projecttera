@@ -1,0 +1,5 @@
+[Lexer Error] Unexpected character '@'.
+  --> tests/cases/err_lex_unexpected_character.tera:1:9
+  |
+1 | print(1 @ 2)
+  |         ^
