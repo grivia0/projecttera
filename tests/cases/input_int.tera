@@ -1,0 +1,3 @@
+// `input` reads a line of text; the type written after `=>` is what that line is read as.
+let n: input("n> ") => int
+print(n + 1)

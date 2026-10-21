@@ -7,7 +7,8 @@ error renderer, lives in this repository: no parser generator, no runtime depend
 
 **Language documentation lives in the [wiki](https://github.com/grivia0/projecttera/wiki)**
 (variables, syntax rules, arithmetic, arrays, control flow, functions, properties). This README
-covers the toolchain: how to build it, run it, embed it and test it.
+covers the toolchain: how to build it, run it, embed it and test it. Planned releases — and the
+wiki work each one needs — are tracked in [`ROADMAP.md`](ROADMAP.md).
 
 **Contents**
 
@@ -38,7 +39,7 @@ ab
 flag is true
 ```
 
-`npm test` builds the project and then runs the whole suite: 46 programs plus 4 CLI checks.
+`npm test` builds the project and then runs the whole suite: 57 programs plus 4 CLI checks.
 
 ## Requirements
 
@@ -171,7 +172,7 @@ node tests/run.mjs arrays       # only the cases whose name contains "arrays"
 The suite runs every program in `tests/cases/` through the built CLI and compares stdout, stderr
 and the exit code byte for byte against the expectation files stored next to it (`.out`, `.err`,
 `.exit`). Four further checks cover the CLI itself — `--help`, no arguments, a missing file, and
-the `index.ts` example — so `npm test` ends with `50 passed, 0 failed, 50 total`. 36 of the 46
+the `index.ts` example — so `npm test` ends with `61 passed, 0 failed, 61 total`. 40 of the 57
 programs are deliberate failures, which is what keeps the diagnostics pinned down as tightly as
 the behaviour. `tests/README.md` explains the layout and how to add a case.
 
@@ -195,4 +196,6 @@ the behaviour. `tests/README.md` explains the layout and how to add a case.
   syntax rules, arithmetic operators, arrays, control flow, functions and properties.
 * `tests/README.md` — the test harness, case layout, and how to add a case. The `.tera` files
   there double as small runnable examples of each feature.
+* `ROADMAP.md` — the release plan (`1.1` → `1.6`), what each release ships, and which wiki pages
+  each release rewrites or adds.
 * `index.ts` — the smallest complete example of embedding the interpreter.

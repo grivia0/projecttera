@@ -1,0 +1,6 @@
+// Known limitation: only declarations, assignments and `return` name a target type, so an
+// `input()` handed straight to a function argument stays a string.
+fn twice(n: int) => int {
+  return n * 2
+}
+print(twice(input()))

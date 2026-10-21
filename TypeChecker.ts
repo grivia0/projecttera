@@ -44,6 +44,13 @@ function stripParamModifiers(t: string): string {
   return t;
 }
 
+// The types `input()` knows how to read a line of text into. They are compared after
+// normalization, so `bool` and `boolean` are the same entry.
+const INPUT_READABLE_TYPES = ["string", "int", "boolean"];
+
+// Spelling used in diagnostics: the language writes the annotation as `bool`.
+const INPUT_READABLE_TYPES_LABEL = "'int', 'string' or 'bool'";
+
 class TypeEnvironment {
   private bindings: Map<string, TeraType> = new Map();
 
@@ -166,7 +173,10 @@ export class TypeChecker {
     }
 
     if (node.targetType) {
-      if (node.value && !this.isTypeCompatible(node.targetType, inferredType)) {
+      // `let n: input("n> ") => int` is not a `string`-to-`int` mismatch: the annotation is
+      // what tells `input` to read the line into that type (see `inputCallType`).
+      const readInto = node.value ? this.inputCallType(node.value, node.targetType, node.value.loc) : null;
+      if (node.value && readInto === null && !this.isTypeCompatible(node.targetType, inferredType)) {
         throw new TypeCheckError(
           `Cannot assign value of type '${inferredType}' to target type '${node.targetType}' for variable '${node.identifier}'.`,
           node.loc
@@ -359,6 +369,17 @@ export class TypeChecker {
     }
 
     const valueType: TeraType = node.value ? this.inferExpressionType(node.value, env) : "undefined";
+    // `return input("n> ")` inside a function declared `=> int` reads the line as an int.
+    // A function without a declared return type gets no special treatment: the comparison
+    // below reports it exactly as before.
+    if (
+      node.value &&
+      this.currentReturnType !== null &&
+      normalizeType(this.currentReturnType) !== "undefined" &&
+      this.inputCallType(node.value, this.currentReturnType, node.value.loc) !== null
+    ) {
+      return;
+    }
     if (!this.isTypeCompatible(this.currentReturnType, valueType)) {
       throw new TypeCheckError(
         `Cannot return value of type '${valueType}' from a function declared to return '${this.currentReturnType}'.`,
@@ -416,8 +437,15 @@ export class TypeChecker {
     const valueType = this.inferExpressionType(node.value, env);
 
     if (node.target.type === "Identifier") {
-      env.assign(node.target.name, valueType, node.target.loc);
-      return valueType;
+      // `n = input("n> ")` reads the line as the variable's declared type, so the type the
+      // name was declared with is what the call has to produce here.
+      const declaredType = env.lookup(node.target.name, node.target.loc);
+      const inputType = this.inputCallType(node.value, declaredType, node.value.loc);
+      if (inputType === null) {
+        env.assign(node.target.name, valueType, node.target.loc);
+        return valueType;
+      }
+      return inputType;
     }
 
     if (node.target.type === "IndexAccess") {
@@ -709,6 +737,34 @@ export class TypeChecker {
     const ret = sig.slice(closed + 3);
     const params = inner.length === 0 ? [] : inner.split(",");
     return { params, ret };
+  }
+
+  // `input(<prompt>)` always reads a line of text and yields a string on its own. When the
+  // code around the call writes down the type the value must have, the line is read into
+  // that type instead:
+  //
+  //   let n: input("n> ") => int      // the line is parsed as an int
+  //   let s: input("s> ")             // nothing written down → stays a string
+  //
+  // The interpreter performs the conversion; this method only reports which type the call
+  // stands for, and rejects the annotations a line cannot be read into (`arr[int]`) with a
+  // message about `input` rather than a confusing `string`-to-`arr[int]` mismatch.
+  // Returns null when the expression is not a call to `input`.
+  private inputCallType(expr: ExpressionNode, declaredType: string, loc?: SourceLocation): TeraType | null {
+    if (!this.isInputCall(expr)) return null;
+
+    const normalized = normalizeType(declaredType);
+    if (!INPUT_READABLE_TYPES.includes(normalized)) {
+      throw new TypeCheckError(
+        `input() cannot produce a value of type '${declaredType}'. It can only produce ${INPUT_READABLE_TYPES_LABEL}.`,
+        loc
+      );
+    }
+    return normalized;
+  }
+
+  private isInputCall(expr: ExpressionNode): boolean {
+    return expr.type === "CallExpr" && expr.callee.type === "Identifier" && expr.callee.name === "input";
   }
 
   private isTypeCompatible(target: string, inferred: string): boolean {

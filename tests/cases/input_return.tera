@@ -1,0 +1,5 @@
+// `return input(...)` is read as the function's declared return type.
+fn readInt() => int {
+  return input("r> ")
+}
+print(readInt() + 1)

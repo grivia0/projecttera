@@ -18,16 +18,34 @@ import type {
   UnaryExprNode,
 } from "./AST.js";
 
+// Frames the environment chain: a binding can remember the type it was declared with
+// (`let n: 0 => int`), which is what lets `n = input("n> ")` read the line as an int.
 export class Environment {
   private variables = new Map();
+  private declaredTypes = new Map<string, string>();
   private parent: Environment | null = null;
 
   constructor(parent: Environment | null = null) {
     this.parent = parent;
   }
 
-  public define(name: string, value: any): void {
+  // `declaredType` is only passed for bindings whose type the program wrote down; the
+  // globals and untyped declarations are stored without one.
+  public define(name: string, value: any, declaredType?: string): void {
     this.variables.set(name, value);
+    if (declaredType) {
+      this.declaredTypes.set(name, declaredType);
+    }
+  }
+
+  // The declared type of the binding this scope resolves `name` to, or undefined when the
+  // program never wrote one down. Mirroring `assign`, a binding in an inner scope wins over
+  // an annotated one further out.
+  public declaredTypeOf(name: string): string | undefined {
+    if (this.variables.has(name)) {
+      return this.declaredTypes.get(name);
+    }
+    return this.parent ? this.parent.declaredTypeOf(name) : undefined;
   }
 
   // `loc` is threaded through so a runtime failure can point at the source position of
@@ -55,6 +73,63 @@ export class Environment {
   }
 }
 
+// `input(<prompt>)` hands back the raw line as a string. When the surrounding code wrote
+// down a type for that value — `let n: input("n> ") => int`, `n = input("n> ")` or
+// `return input("n> ")` in a function declared `=> int` — the line is read into that type
+// instead. The type checker has already rejected every annotation a line cannot be read
+// into, so only `int`, `string` and `bool` reach the helpers below.
+
+// True for a direct call to the `input` built-in, the only expression the runtime converts.
+function isInputCall(expr: ExpressionNode): boolean {
+  return expr.type === "CallExpr" && expr.callee.type === "Identifier" && expr.callee.name === "input";
+}
+
+// The annotation keyword is `bool`; the checker normalizes it to `boolean` before storing.
+function normalizeAnnotationType(t: string): string {
+  return t === "bool" ? "boolean" : t;
+}
+
+// Reads a line of text as `declaredType`, stopping the program when the text does not fit
+// (`abc` as an int, `maybe` as a bool, or nothing at all when the input is exhausted).
+function readLineAs(line: any, declaredType: string, loc: SourceLocation): any {
+  const text = String(line);
+
+  switch (normalizeAnnotationType(declaredType)) {
+    case "string":
+      return text;
+    case "int":
+      if (!/^[+-]?\d+$/.test(text)) {
+        throw new RuntimeError(`Cannot read '${text}' as an int.`, loc);
+      }
+      return parseInt(text, 10);
+    case "boolean": {
+      const lowered = text.toLowerCase();
+      if (lowered !== "true" && lowered !== "false") {
+        throw new RuntimeError(`Cannot read '${text}' as a bool (expected 'true' or 'false').`, loc);
+      }
+      return lowered === "true";
+    }
+    default:
+      // Unreachable: the type checker reports this annotation before the program runs.
+      throw new RuntimeError(
+        `input() cannot produce a value of type '${declaredType}'. It can only produce 'int', 'string' or 'bool'.`,
+        loc
+      );
+  }
+}
+
+// Best-effort Tera type of a runtime value, used for bindings whose type the program never
+// wrote down but the checker still infers — the loop variable of `for n: nums` gets the
+// element type of `nums`, and this is the runtime half of that agreement. Non-scalar values
+// (arrays, function values) report nothing, which is fine: the checker refuses to read a
+// line into anything but `int`, `string` and `bool` in the first place.
+function teraTypeOfValue(value: any): string | undefined {
+  if (typeof value === "string") return "string";
+  if (typeof value === "number") return "int";
+  if (typeof value === "boolean") return "boolean";
+  return undefined;
+}
+
 class ReturnValue {
   constructor(public value: any) {}
 }
@@ -65,6 +140,10 @@ class ContinueSignal {}
 
 export class Interpreter {
   private globalEnv: Environment;
+  // Declared return type of the function currently running, so `return input("n> ")` can be
+  // read into it (mirrors `currentReturnType` in the type checker). null at top level and in
+  // functions that never wrote a return type down.
+  private currentReturnType: string | null = null;
 
   constructor() {
     this.globalEnv = new Environment();
@@ -128,9 +207,14 @@ export class Interpreter {
       case "SwitchStatement":
         this.executeSwitchStatement(stmt as SwitchStatementNode, env);
         break;
-      case "ReturnStatement":
-        const retValue = stmt.value ? this.evaluate(stmt.value, env) : undefined;
+      case "ReturnStatement": {
+        let retValue = stmt.value ? this.evaluate(stmt.value, env) : undefined;
+        if (stmt.value) {
+          // `return input("n> ")` reads the line as the function's declared return type.
+          retValue = this.readInputInto(retValue, stmt.value, this.currentReturnType);
+        }
         throw new ReturnValue(retValue);
+      }
       case "ExpressionStatement":
         this.evaluate(stmt.expression, env);
         break;
@@ -147,8 +231,18 @@ export class Interpreter {
   }
 
   private executeVarDecl(node: VarDeclNode, env: Environment): void {
-    const value = node.value ? this.evaluate(node.value, env) : undefined;
-    env.define(node.identifier, value);
+    let value = node.value ? this.evaluate(node.value, env) : undefined;
+    if (node.value && node.targetType) {
+      value = this.readInputInto(value, node.value, node.targetType);
+    }
+    env.define(node.identifier, value, node.targetType);
+  }
+
+  // `input(...)` produced a raw line; when the surrounding code wrote a type down for it,
+  // the line is read into that type. Every other expression passes through untouched.
+  private readInputInto(value: any, source: ExpressionNode, declaredType: string | null | undefined): any {
+    if (!declaredType || normalizeAnnotationType(declaredType) === "undefined") return value;
+    return isInputCall(source) ? readLineAs(value, declaredType, source.loc) : value;
   }
 
   private executeRemoveStatement(node: { target: ExpressionNode }, env: Environment): void {
@@ -171,8 +265,10 @@ export class Interpreter {
     const fnClosure = (...args: any[]) => {
       const fnEnv = new Environment(env);
       for (let i = 0; i < node.params.length; i++) {
-        fnEnv.define(node.params[i]!.name, args[i]);
+        fnEnv.define(node.params[i]!.name, args[i], node.params[i]!.paramType);
       }
+      const outerReturnType = this.currentReturnType;
+      this.currentReturnType = node.returnType ?? null;
       try {
         if (Array.isArray(node.body)) {
           for (const stmt of node.body) {
@@ -187,6 +283,8 @@ export class Interpreter {
           return err.value;
         }
         throw err;
+      } finally {
+        this.currentReturnType = outerReturnType;
       }
       return undefined;
     };
@@ -238,7 +336,10 @@ export class Interpreter {
 
     for (const item of iterable) {
       const loopEnv = new Environment(env);
-      loopEnv.define(node.variable, item);
+      // The checker gives the loop variable the element type of the iterable, so the runtime
+      // records the same thing here — that is what lets `n = input()` inside the loop read
+      // the line as an int when iterating an `arr[int]`.
+      loopEnv.define(node.variable, item, teraTypeOfValue(item));
       try {
         if (Array.isArray(node.body)) {
           for (const stmt of node.body) this.execute(stmt, loopEnv);
@@ -375,8 +476,10 @@ export class Interpreter {
         return obj ? obj[prop] : undefined;
       }
       case "AssignmentExpr": {
-        const value = this.evaluate(expr.value, env);
+        let value = this.evaluate(expr.value, env);
         if (expr.target.type === "Identifier") {
+          // `n = input("n> ")` reads the line as the type the variable was declared with.
+          value = this.readInputInto(value, expr.value, env.declaredTypeOf(expr.target.name));
           env.assign(expr.target.name, value, expr.target.loc);
         } else if (expr.target.type === "IndexAccess") {
           const targetObj = this.evaluate(expr.target.object, env);
@@ -407,8 +510,10 @@ export class Interpreter {
         return (...args: any[]) => {
           const fnEnv = new Environment(env);
           for (let i = 0; i < fnExpr.params.length; i++) {
-            fnEnv.define(fnExpr.params[i]!.name, args[i]);
+            fnEnv.define(fnExpr.params[i]!.name, args[i], fnExpr.params[i]!.paramType);
           }
+          const outerReturnType = this.currentReturnType;
+          this.currentReturnType = fnExpr.returnType ?? null;
           try {
             if (Array.isArray(fnExpr.body)) {
               for (const stmt of fnExpr.body) {
@@ -422,6 +527,8 @@ export class Interpreter {
               return err.value;
             }
             throw err;
+          } finally {
+            this.currentReturnType = outerReturnType;
           }
           return undefined;
         };

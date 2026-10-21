@@ -1,0 +1,3 @@
+// A line that is not a whole number stops the program where it is read.
+let n: input() => int
+print(n)

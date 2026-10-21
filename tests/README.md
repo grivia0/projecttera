@@ -9,12 +9,15 @@ stored next to the program.
 | File                | Meaning                                             |
 | ------------------- | --------------------------------------------------- |
 | `cases/<name>.tera` | the program under test (required)                   |
+| `cases/<name>.in`   | stdin fed to the program (optional, defaults to EOF) |
 | `cases/<name>.out`  | expected stdout (optional, defaults to empty)       |
 | `cases/<name>.err`  | expected stderr (optional, defaults to empty)       |
 | `cases/<name>.exit` | expected exit code (optional, defaults to `0`)      |
 
 Comparison is exact apart from trailing newlines, so a diagnostic that changes on purpose
-has to be updated deliberately. `run.mjs` additionally performs a few checks that are
+has to be updated deliberately. A case without a `.in` file reads end-of-file, so `input()`
+returns an empty line — which is why the `input_*` cases that need real data carry one.
+`run.mjs` additionally performs a few checks that are
 about the CLI itself rather than about one program: `--help`, no arguments, a missing
 file, and the `index.ts` example.
 
@@ -30,7 +33,8 @@ node tests/run.mjs arrays  # only cases whose name contains "arrays"
 
 1. Write `cases/my_case.tera`.
 2. Run `node dist/bin.js tests/cases/my_case.tera` and check that the output really is
-   what the language should do.
+   what the language should do. If the program calls `input()`, save the data it should
+   read as `cases/my_case.in` and feed it with `< cases/my_case.in`.
 3. Save it as `cases/my_case.out` (stdout), `cases/my_case.err` (stderr) and
    `cases/my_case.exit` (only when the exit code is not `0`).
 

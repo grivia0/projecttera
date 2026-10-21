@@ -1,0 +1,5 @@
+[Runtime Error] Cannot read 'maybe' as a bool (expected 'true' or 'false').
+  --> tests/cases/err_input_bad_bool.tera:2:16
+  |
+2 | let flag: input() => bool
+  |                ^

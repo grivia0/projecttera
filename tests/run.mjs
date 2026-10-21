@@ -6,6 +6,7 @@
 // expectation files stored next to it:
 //
 //   tests/cases/<name>.tera   the program under test
+//   tests/cases/<name>.in     stdin fed to it (optional, defaults to end-of-file)
 //   tests/cases/<name>.out    expected stdout (optional, defaults to empty)
 //   tests/cases/<name>.err    expected stderr (optional, defaults to empty)
 //   tests/cases/<name>.exit   expected exit code (optional, defaults to 0)
@@ -75,12 +76,16 @@ function firstDifference(expected, actual) {
   return "    (contents are equal, check the exit code)";
 }
 
-function spawnTera(args, script = "dist/bin.js") {
+function spawnTera(args, script = "dist/bin.js", stdin = "") {
   return spawnSync(process.execPath, [path.join(root, script), ...args], {
     cwd: root,
     encoding: "utf8",
     timeout: TIMEOUT_MS,
-    stdio: ["ignore", "pipe", "pipe"],
+    // stdin is a pipe rather than /dev/null so a case can drive `input()` from its `<name>.in`
+    // file; when there is no such file the pipe is empty and reads as end-of-file, which is
+    // exactly what an ignored stdin used to look like.
+    input: stdin,
+    stdio: ["pipe", "pipe", "pipe"],
   });
 }
 
@@ -88,7 +93,7 @@ function runCase(name) {
   // The program is passed as a repository-relative path so diagnostics in the
   // expectation files stay identical on every machine.
   const relativePath = path.join("tests", "cases", `${name}.tera`);
-  const result = spawnTera([relativePath]);
+  const result = spawnTera([relativePath], "dist/bin.js", readExpectation(name, ".in") ?? "");
 
   if (result.signal) {
     return [`    killed after ${TIMEOUT_MS}ms (${result.signal}) — does the program terminate?`];

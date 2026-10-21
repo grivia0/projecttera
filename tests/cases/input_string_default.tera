@@ -1,0 +1,4 @@
+// With no type written down, a line from `input` is a plain string.
+let name: input("s> ")
+print(name)
+print(name.leng)

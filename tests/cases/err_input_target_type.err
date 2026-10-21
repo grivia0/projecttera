@@ -1,0 +1,5 @@
+[Type Error] input() cannot produce a value of type 'arr[int]'. It can only produce 'int', 'string' or 'bool'.
+  --> tests/cases/err_input_target_type.tera:2:16
+  |
+2 | let nums: input("n> ") => arr[int]
+  |                ^

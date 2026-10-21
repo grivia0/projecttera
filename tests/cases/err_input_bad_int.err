@@ -1,0 +1,5 @@
+[Runtime Error] Cannot read 'abc' as an int.
+  --> tests/cases/err_input_bad_int.tera:2:13
+  |
+2 | let n: input() => int
+  |             ^

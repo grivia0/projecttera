@@ -1,0 +1,4 @@
+// The declared type of the variable is what `input` reads into on assignment too.
+let n: 0 => int
+n = input("n> ")
+print(n + 1)

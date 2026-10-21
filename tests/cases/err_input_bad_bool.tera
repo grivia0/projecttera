@@ -1,0 +1,3 @@
+// Only `true` and `false` can be read as a bool.
+let flag: input() => bool
+print(flag)

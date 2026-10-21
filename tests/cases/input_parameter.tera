@@ -1,0 +1,6 @@
+// Assigning to an `int` parameter reads the line as an int as well.
+fn bump(x: int) => int {
+  x = input("x> ")
+  return x + 1
+}
+print(bump(0))

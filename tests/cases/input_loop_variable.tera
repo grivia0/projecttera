@@ -1,0 +1,7 @@
+// The loop variable of `for n: nums` takes the element type of `nums`, so this reads the
+// line as an int inside the loop.
+let nums: [0] => arr[int]
+for n: nums {
+  n = input("n> ")
+  print(n + 1)
+}
