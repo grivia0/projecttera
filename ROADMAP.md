@@ -92,13 +92,15 @@ line per call, CRLF accepted, no length cap, spaces preserved, end-of-input a ru
 a caret at the call; and the conversions `string(x)`, `int(x)`, `bool(x)`, which accept a fixed
 set of operand types and reject the rest at check time (`int(true)` does not compile) and stop on
 text they cannot read (`int("abc")`, `int("4.5")`, a number too large for an exact `int`). A type
-keyword in expression position is the conversion, so `print(int)` is a parse error. Twenty-two new
-cases (`input_lines`, `input_whitespace`, `input_typed_whitespace`, `input_empty_line`,
-`input_no_newline`, `input_crlf`, `input_long_line`, `input_utf8`, `input_utf8_boundary`,
-`err_input_eof`, `conversions_string`, `conversions_int`, `conversions_bool`, `conversions_input`,
+keyword in expression position is the conversion, so `print(int)` is a parse error, while
+`let n: int("42")` converts where `let n: int` declares. Twenty-four new cases (`input_lines`,
+`input_whitespace`, `input_typed_whitespace`, `input_empty_line`, `input_no_newline`, `input_crlf`,
+`input_long_line`, `input_utf8`, `input_utf8_boundary`, `err_input_eof`, `conversions_string`,
+`conversions_int`, `conversions_bool`, `conversions_input`, `conversions_declaration`,
 `err_conversions_int`, `err_conversions_bool`, `err_conversions_operand`,
-`err_conversions_string_operand`, `err_conversions_arity`, `err_conversions_range`,
-`err_conversions_float`, `err_conversions_keyword`) pin it; the suite is `83 passed`.
+`err_conversions_string_operand`, `err_conversions_declaration_type`, `err_conversions_arity`,
+`err_conversions_range`, `err_conversions_float`, `err_conversions_keyword`) pin it; the suite is
+`85 passed`.
 
 **Wiki:** Variables, Types, Operators, Strings, Arrays (full rewrite of the examples), plus a new
 Conversions section. One page for `input()` behaviour.

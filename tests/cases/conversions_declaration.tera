@@ -1,0 +1,5 @@
+// A conversion directly after `let name:` is an initialiser, not a type annotation.
+let n: int("12")
+let flag: bool("true")
+let text: string(n + 1)
+print(string(n + 1) + " " + string(flag) + " " + text)

@@ -1,0 +1,3 @@
+// The conversion's type is the binding's type, so an int conversion cannot be declared a string.
+let s: int("12") => string
+print(s)

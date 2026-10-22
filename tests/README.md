@@ -50,6 +50,11 @@ into those types; `int("4.5")`, `int("abc")`, `bool("maybe")` and a run of digit
 held exactly all stop the program where the conversion is written. `float(x)` is rejected until
 floats exist. The keyword on its own is not a value: `print(int)` is a parse error that says so.
 
+A conversion right after `let name:` is the initial value, not an annotation — the parenthesis
+decides: `let n: int("12")` converts, `let n: int` declares a type and no value (and can be
+assigned later). `cases/conversions_declaration.tera` pins the first form,
+`cases/err_conversions_declaration_type.tera` pins that the conversion's type is the binding's type.
+
 ## Running
 
 ```bash

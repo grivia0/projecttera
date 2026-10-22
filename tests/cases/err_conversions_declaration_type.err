@@ -1,0 +1,5 @@
+[Type Error] Cannot assign value of type 'int' to target type 'string' for variable 's'.
+  --> tests/cases/err_conversions_declaration_type.tera:2:5
+  |
+2 | let s: int("12") => string
+  |     ^

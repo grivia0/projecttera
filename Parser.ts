@@ -85,7 +85,9 @@ export class Parser {
     let targetType: string | undefined = undefined;
 
     if (this.match(TokenType.COLON)) {
-      if (this.checkTypeAnnotation()) {
+      // `let n: int` declares the type, but `let n: int("42")` converts: an annotation can never
+      // be followed by an argument list, so the parenthesis decides between the two forms.
+      if (this.checkTypeAnnotation() && !this.checkNext(TokenType.LPAREN)) {
         targetType = this.parseTypeAnnotation();
       } else {
         value = this.expression();
@@ -644,6 +646,13 @@ export class Parser {
   private check(type: TokenType): boolean {
     if (this.isAtEnd()) return false;
     return this.peek().type === type;
+  }
+
+  // Looks one token past the current one. A declaration and a conversion can start with the same
+  // type keyword, so `varDeclaration` needs the token after it to tell them apart.
+  private checkNext(type: TokenType): boolean {
+    const next = this.tokens[this.current + 1];
+    return next !== undefined && next.type === type;
   }
 
   private advance(): Token {

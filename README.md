@@ -39,7 +39,7 @@ ab
 flag is true
 ```
 
-`npm test` builds the project and then runs the whole suite: 79 programs plus 4 CLI checks.
+`npm test` builds the project and then runs the whole suite: 81 programs plus 4 CLI checks.
 
 ## Requirements
 
@@ -172,7 +172,7 @@ node tests/run.mjs arrays       # only the cases whose name contains "arrays"
 The suite runs every program in `tests/cases/` through the built CLI and compares stdout, stderr
 and the exit code byte for byte against the expectation files stored next to it (`.out`, `.err`,
 `.exit`). Four further checks cover the CLI itself — `--help`, no arguments, a missing file, and
-the `index.ts` example — so `npm test` ends with `83 passed, 0 failed, 83 total`. 49 of the 79
+the `index.ts` example — so `npm test` ends with `85 passed, 0 failed, 85 total`. 50 of the 81
 programs are deliberate failures, which is what keeps the diagnostics pinned down as tightly as
 the behaviour. `tests/README.md` explains the layout and how to add a case.
 
