@@ -1,0 +1,3 @@
+// Text outside ASCII survives the read unchanged.
+let line: input() => string
+print(line)

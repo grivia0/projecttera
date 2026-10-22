@@ -1,0 +1,6 @@
+// A line read as an int or a bool ignores the spaces around it, which is what people type
+// when a prompt asks for a number or a yes/no answer.
+let n: input() => int
+let flag: input() => bool
+print(n * 2)
+print(flag)

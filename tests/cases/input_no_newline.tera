@@ -1,0 +1,4 @@
+// The last line of the input still counts when the input does not end in a newline.
+let line: input() => string
+print(line)
+print(line.leng)

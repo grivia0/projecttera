@@ -1,0 +1,3 @@
+// A long line is read whole: the reader buffers in chunks instead of capping the line.
+let line: input() => string
+print(line.leng)

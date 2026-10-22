@@ -1,6 +1,6 @@
-import * as fs from "fs";
 import type { SourceLocation } from "./TokenType.js";
 import { RuntimeError } from "./Errors.js";
+import { StdinLines } from "./Stdin.js";
 import type {
   ProgramNode,
   StatementNode,
@@ -73,11 +73,11 @@ export class Environment {
   }
 }
 
-// `input(<prompt>)` hands back the raw line as a string. When the surrounding code wrote
-// down a type for that value — `let n: input("n> ") => int`, `n = input("n> ")` or
-// `return input("n> ")` in a function declared `=> int` — the line is read into that type
-// instead. The type checker has already rejected every annotation a line cannot be read
-// into, so only `int`, `string` and `bool` reach the helpers below.
+// `input(<prompt>)` hands back the next line of standard input as a string. When the
+// surrounding code wrote down a type for that value — `let n: input("n> ") => int`,
+// `n = input("n> ")` or `return input("n> ")` in a function declared `=> int` — the line is
+// read into that type instead. The type checker has already rejected every annotation a
+// line cannot be read into, so only `int`, `string` and `bool` reach the helpers below.
 
 // True for a direct call to the `input` built-in, the only expression the runtime converts.
 function isInputCall(expr: ExpressionNode): boolean {
@@ -90,22 +90,25 @@ function normalizeAnnotationType(t: string): string {
 }
 
 // Reads a line of text as `declaredType`, stopping the program when the text does not fit
-// (`abc` as an int, `maybe` as a bool, or nothing at all when the input is exhausted).
+// (`abc` as an int, `maybe` as a bool). The line itself arrives verbatim from `input`, so a
+// plain string keeps its spaces; a number or a bool ignores the spaces around it, because
+// ` 42 ` is what someone types when a prompt asks for a number.
 function readLineAs(line: any, declaredType: string, loc: SourceLocation): any {
   const text = String(line);
+  const trimmed = text.trim();
 
   switch (normalizeAnnotationType(declaredType)) {
     case "string":
       return text;
     case "int":
-      if (!/^[+-]?\d+$/.test(text)) {
-        throw new RuntimeError(`Cannot read '${text}' as an int.`, loc);
+      if (!/^[+-]?\d+$/.test(trimmed)) {
+        throw new RuntimeError(`Cannot read '${trimmed}' as an int.`, loc);
       }
-      return parseInt(text, 10);
+      return parseInt(trimmed, 10);
     case "boolean": {
-      const lowered = text.toLowerCase();
+      const lowered = trimmed.toLowerCase();
       if (lowered !== "true" && lowered !== "false") {
-        throw new RuntimeError(`Cannot read '${text}' as a bool (expected 'true' or 'false').`, loc);
+        throw new RuntimeError(`Cannot read '${trimmed}' as a bool (expected 'true' or 'false').`, loc);
       }
       return lowered === "true";
     }
@@ -144,6 +147,10 @@ export class Interpreter {
   // read into it (mirrors `currentReturnType` in the type checker). null at top level and in
   // functions that never wrote a return type down.
   private currentReturnType: string | null = null;
+  // Standard input, read one line per `input()` call (see Stdin.ts). Buffered per run: bytes
+  // read ahead of a newline are kept for the next call, and anything still unread when the
+  // program ends is dropped.
+  private stdin = new StdinLines();
 
   constructor() {
     this.globalEnv = new Environment();
@@ -151,23 +158,25 @@ export class Interpreter {
   }
 
   private setupGlobals(): void {
-  // Built-in print statement / global function
-  this.globalEnv.define("print", (...args: any[]) => {
-    console.log(...args);
-  });
+    // Built-in print statement / global function.
+    this.globalEnv.define("print", (...args: any[]) => {
+      console.log(...args);
+    });
 
-  this.globalEnv.define("input", (promptMsg?: string) => {
-    if (promptMsg !== undefined) {
-      process.stdout.write(String(promptMsg));
-    }
-    const buffer = Buffer.alloc(1024);
-    let bytesRead = 0;
-    try {
-      bytesRead = fs.readSync(0, buffer, 0, 1024, null);
-    } catch (e) {
-      return "";
-    }
-    return buffer.toString("utf8", 0, bytesRead).trim();
+    this.globalEnv.define("input", (promptMsg?: string) => {
+      if (promptMsg !== undefined) {
+        process.stdout.write(String(promptMsg));
+      }
+
+      // Each call consumes exactly one line. End of input is a failure rather than an empty
+      // line: the two cannot be told apart otherwise, and a program that keeps asking for
+      // input it never receives is a bug worth stopping on. Optionals (1.3.0) will introduce
+      // the explicit way to ask for a line that may not be there.
+      const line = this.stdin.readLine();
+      if (line === null) {
+        throw new RuntimeError("input() expected a line but the input has ended.");
+      }
+      return line;
     });
   }
 
@@ -501,7 +510,17 @@ export class Interpreter {
         const callee = this.evaluate(expr.callee, env);
         const args = expr.arguments.map((arg) => this.evaluate(arg, env));
         if (typeof callee === "function") {
-          return callee(...args);
+          try {
+            return callee(...args);
+          } catch (error) {
+            // A built-in raises its failure without knowing where it was called from, so the
+            // call site is attached here (`input()` running out of lines is the main one).
+            // Errors from deeper in a Tera function already point at their own line.
+            if (error instanceof RuntimeError && !error.location) {
+              throw new RuntimeError(error.detail, expr.loc);
+            }
+            throw error;
+          }
         }
         throw new RuntimeError(`Target is not callable`, expr.loc);
       }

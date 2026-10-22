@@ -1,0 +1,4 @@
+// A two-byte character that straddles the end of a read chunk is still decoded correctly.
+let line: input() => string
+print(line.leng)
+print(line.last)

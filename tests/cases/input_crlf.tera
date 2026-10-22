@@ -1,0 +1,5 @@
+// Windows line endings lose their carriage return, so a CRLF file reads like an LF one.
+let one: input() => string
+let two: input() => string
+print(one.leng)
+print(two)

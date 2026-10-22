@@ -1,0 +1,6 @@
+// Each call to `input` consumes exactly one line, so a program can ask several questions
+// one after another.
+let first: input("first> ") => string
+let second: input("second> ") => string
+print(first)
+print(second)

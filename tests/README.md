@@ -15,11 +15,22 @@ stored next to the program.
 | `cases/<name>.exit` | expected exit code (optional, defaults to `0`)      |
 
 Comparison is exact apart from trailing newlines, so a diagnostic that changes on purpose
-has to be updated deliberately. A case without a `.in` file reads end-of-file, so `input()`
-returns an empty line — which is why the `input_*` cases that need real data carry one.
-`run.mjs` additionally performs a few checks that are
-about the CLI itself rather than about one program: `--help`, no arguments, a missing
-file, and the `index.ts` example.
+has to be updated deliberately. A case without a `.in` file reads end-of-file, so a program
+that calls `input()` there fails with `input() expected a line but the input has ended.` —
+which is why every case that reads input carries one.
+
+`run.mjs` additionally performs a few checks that are about the CLI itself rather than about
+one program: `--help`, no arguments, a missing file, and the `index.ts` example.
+
+## Standard input
+
+`input()` reads **one line per call** (see `Stdin.ts`), so a program can ask several questions
+in a row. Only the line terminator is removed: the text keeps its leading and trailing spaces,
+`\r\n` and `\n` endings read the same, a final line without a newline still counts, and there is
+no limit on the line length. Reading as `int` or `bool` ignores spaces around the value, so
+` 42 ` is an int, while reading as `string` hands the line back exactly as it was written. An
+empty line and the end of the input are different answers: the first reads as an empty string,
+the second stops the program.
 
 ## Running
 

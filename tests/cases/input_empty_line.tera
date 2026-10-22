@@ -1,0 +1,5 @@
+// An empty line is still a line: it reads as an empty string rather than as end of input.
+let blank: input() => string
+let text: input() => string
+print(blank.leng)
+print(text)

@@ -1,0 +1,5 @@
+// Reading past the last line stops the program instead of quietly handing back "".
+let first: input() => string
+print(first)
+let second: input() => string
+print(second)

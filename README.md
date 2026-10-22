@@ -39,7 +39,7 @@ ab
 flag is true
 ```
 
-`npm test` builds the project and then runs the whole suite: 57 programs plus 4 CLI checks.
+`npm test` builds the project and then runs the whole suite: 67 programs plus 4 CLI checks.
 
 ## Requirements
 
@@ -172,12 +172,14 @@ node tests/run.mjs arrays       # only the cases whose name contains "arrays"
 The suite runs every program in `tests/cases/` through the built CLI and compares stdout, stderr
 and the exit code byte for byte against the expectation files stored next to it (`.out`, `.err`,
 `.exit`). Four further checks cover the CLI itself — `--help`, no arguments, a missing file, and
-the `index.ts` example — so `npm test` ends with `61 passed, 0 failed, 61 total`. 40 of the 57
+the `index.ts` example — so `npm test` ends with `71 passed, 0 failed, 71 total`. 41 of the 67
 programs are deliberate failures, which is what keeps the diagnostics pinned down as tightly as
 the behaviour. `tests/README.md` explains the layout and how to add a case.
 
 ## Known limitations
 
+* `input()` stops the program when the input runs out. There is no way yet to ask for a line that
+  may be absent — that arrives with optionals in `1.3.0`.
 * Numeric literals always type as `int`; the `float` annotation cannot be satisfied yet.
 * `at`, `first` and `last` follow JavaScript: `at(-1)` counts from the end and an out-of-bounds
   `at` yields `undefined`. Use `get()` when a bounds check is wanted.

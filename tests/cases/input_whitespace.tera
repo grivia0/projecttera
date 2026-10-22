@@ -1,0 +1,4 @@
+// A line read as a string keeps the spaces around it; only the line terminator is removed.
+let line: input() => string
+print(line.leng)
+print("[" + line + "]")

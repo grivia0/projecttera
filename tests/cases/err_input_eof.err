@@ -1,0 +1,5 @@
+[Runtime Error] input() expected a line but the input has ended.
+  --> tests/cases/err_input_eof.tera:4:18
+  |
+4 | let second: input() => string
+  |                  ^

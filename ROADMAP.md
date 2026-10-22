@@ -45,7 +45,7 @@ a version bump and release notes for one or two members, with no wiki benefit.
 | `1.5.0` | Programs | `import` and multi-file projects, project manifest, standard library (strings, arrays, math, io, json, time) | 1 new, 5–6 new reference pages | ~3.5 weeks |
 | `1.6.0` | Tooling & depth | REPL, `tera fmt`, `tera test`, LSP, explicit-stack VM (deep recursion), spec, CI | 2 new | ongoing |
 
-Suite size targets: 61 → ~85 → ~100 → ~115 → ~125 → ~150 (the library release adds table-driven
+Suite size targets: 71 → ~90 → ~105 → ~120 → ~130 → ~150 (the library release adds table-driven
 member tests rather than one program per member).
 
 ## 1.1.0 — Foundation
@@ -85,6 +85,12 @@ any new type form.
 `int` function is rejected, `a[99]` errors, two `input()` calls read two lines, `"\n"` is a newline,
 `string(5)` works, `let a: [] => arr[int]; a.add(1)` works, `x += 1` works, `0x10`/`1_000`/`1e3`
 work, and `length`/`remove`/`concat`/`toString` are the only spellings.
+
+**Already landed on `main`, ahead of the release:** the `input()` line reader (`Stdin.ts`) — one
+line per call, CRLF accepted, no length cap, spaces preserved, end-of-input a runtime error with
+a caret at the call. Ten new cases (`input_lines`, `input_whitespace`, `input_typed_whitespace`,
+`input_empty_line`, `input_no_newline`, `input_crlf`, `input_long_line`, `input_utf8`,
+`input_utf8_boundary`, `err_input_eof`) pin it; the suite is `71 passed`.
 
 **Wiki:** Variables, Types, Operators, Strings, Arrays (full rewrite of the examples), plus a new
 Conversions section. One page for `input()` behaviour.
@@ -232,8 +238,8 @@ the project will ever have.
 ## Release checklist
 
 - [ ] `package.json` version bumped; `npm run build && npm test` green; record `N passed` in the notes
-- [ ] README test counts and *Known limitations* reviewed (stale today: it says 46 programs / 50
-      checks, the suite is 57 / 61)
+- [ ] README test counts and *Known limitations* reviewed: the counts must match the last line of
+      `npm test`, and anything the release changed must move out of the limitations list
 - [ ] `release-notes/vX.Y.Z/notes.md` written, with migration table
 - [ ] `release-notes/vX.Y.Z/wiki/*.md` drafted for every affected page
 - [ ] `release-notes/WIKI-MAP.md` updated
