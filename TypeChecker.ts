@@ -224,15 +224,19 @@ export class TypeChecker {
       fnEnv.define(param.name, normalizeType(param.paramType), node.loc);
     }
 
-    this.checkFunctionBody(node.body, returnType, fnEnv);
+    const subject = node.name ? `Function '${node.name}'` : "This function";
+    this.checkFunctionBody(node.body, returnType, fnEnv, subject, node.loc);
   }
 
   // Shared by named functions and inline function expressions: checks the body while
   // enforcing the declared return type and resetting loop/break context at the boundary.
+  // `subject` is how the function is named in the fall-through diagnostic ("Function 'f'").
   private checkFunctionBody(
     body: StatementNode[] | ExpressionNode,
     returnType: TeraType,
-    fnEnv: TypeEnvironment
+    fnEnv: TypeEnvironment,
+    subject: string,
+    loc?: SourceLocation
   ): void {
     const outerReturn = this.currentReturnType;
     const outerBreak = this.breakableDepth;
@@ -248,11 +252,92 @@ export class TypeChecker {
       } else {
         this.inferExpressionType(body, fnEnv);
       }
+      // Checked after the body so a mistyped `return` is still reported at the `return` that
+      // caused it, not at the declaration.
+      this.checkReturnOnAllPaths(body, returnType, subject, loc);
     } finally {
       this.currentReturnType = outerReturn;
       this.breakableDepth = outerBreak;
       this.continuableDepth = outerContinue;
     }
+  }
+
+  // A function that promises a value must not be able to reach its closing brace: every path
+  // either returns, or never finishes at all. The analysis is deliberately conservative — no
+  // constant folding, no data flow on conditions — so a rejected function really can fall
+  // through, and the fix is always visible in the source.
+  private checkReturnOnAllPaths(
+    body: StatementNode[] | ExpressionNode,
+    returnType: TeraType,
+    subject: string,
+    loc?: SourceLocation
+  ): void {
+    // A function with no declared return type may finish whenever it likes, and an expression
+    // body is a single value that is always produced.
+    if (normalizeType(returnType) === "undefined") return;
+    if (Array.isArray(body) && !this.blockReturns(body)) {
+      throw new TypeCheckError(
+        `${subject} is declared to return '${returnType}' but can finish without returning a value.`,
+        loc
+      );
+    }
+  }
+
+  // True when the block cannot finish normally. A statement that always returns makes every
+  // statement after it unreachable, so finding one anywhere in the block is enough.
+  private blockReturns(statements: StatementNode[]): boolean {
+    return statements.some((stmt) => this.statementReturns(stmt));
+  }
+
+  private statementReturns(stmt: StatementNode): boolean {
+    switch (stmt.type) {
+      case "ReturnStatement":
+        return true;
+      case "IfStatement":
+        // An `if` without an `else` always has a path that skips the branch entirely.
+        if (!stmt.elseBranch) return false;
+        return this.branchReturns(stmt.thenBranch) && this.branchReturns(stmt.elseBranch);
+      case "WhileStatement":
+        // The body does not matter: a `while (true)` that never breaks either returns from
+        // inside the loop or never finishes, and both are fine. A loop that can break, or
+        // whose condition can be false, leaves the end of the function reachable.
+        return this.isAlwaysTrue(stmt.condition) && !this.hasOwnBreak(stmt.body);
+      case "ForClauseStatement":
+        // `for (;;)` is the infinite form; a condition that can be false ends the loop.
+        return stmt.condition === null && !this.hasOwnBreak(stmt.body);
+      case "SwitchStatement": {
+        // Cases do not fall through — a case ends where the next `case` begins — but without a
+        // `default` some value reaches the end of the switch, and an empty case does nothing.
+        const hasDefault = stmt.cases.some((c) => c.test === null);
+        return hasDefault && stmt.cases.every((c) => this.blockReturns(c.consequent));
+      }
+      default:
+        return false;
+    }
+  }
+
+  private branchReturns(branch: StatementNode[] | StatementNode): boolean {
+    return Array.isArray(branch) ? this.blockReturns(branch) : this.statementReturns(branch);
+  }
+
+  private isAlwaysTrue(expr: ExpressionNode): boolean {
+    return expr.type === "Literal" && expr.rawType === "boolean" && expr.value === true;
+  }
+
+  // Does the loop body `break` out of *this* loop? A `break` inside a nested loop or switch
+  // belongs to that construct, so only `if` branches are followed.
+  private hasOwnBreak(body: StatementNode[] | StatementNode): boolean {
+    const statements = Array.isArray(body) ? body : [body];
+    return statements.some((stmt) => this.statementHasOwnBreak(stmt));
+  }
+
+  private statementHasOwnBreak(stmt: StatementNode): boolean {
+    if (stmt.type === "BreakStatement") return true;
+    if (stmt.type === "IfStatement") {
+      if (this.hasOwnBreak(stmt.thenBranch)) return true;
+      return stmt.elseBranch ? this.hasOwnBreak(stmt.elseBranch) : false;
+    }
+    return false;
   }
 
   private checkIfStatement(node: IfStatementNode, env: TypeEnvironment): void {
@@ -450,7 +535,7 @@ export class TypeChecker {
         for (const param of expr.params) {
           fnEnv.define(param.name, normalizeType(param.paramType), expr.loc);
         }
-        this.checkFunctionBody(expr.body, returnType, fnEnv);
+        this.checkFunctionBody(expr.body, returnType, fnEnv, "This function", expr.loc);
         return this.makeSignature(expr.params, returnType);
       }
       default:

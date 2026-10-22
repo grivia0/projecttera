@@ -1,0 +1,3 @@
+// A bare index does not count from the end; `at(-1)` is the spelling for that.
+let nums: [1, 2, 3] => arr[int]
+print(nums[-1])

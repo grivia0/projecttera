@@ -1,4 +1,4 @@
-[Runtime Error] Index out of bounds for array of length 3
+[Runtime Error] Index 7 is out of bounds for an array of length 3.
   --> tests/cases/err_runtime_index_out_of_bounds.tera:2:12
   |
 2 | print(nums.get(7))

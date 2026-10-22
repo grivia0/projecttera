@@ -305,7 +305,20 @@ export class Interpreter {
     if (!Array.isArray(targetObj)) {
       throw new RuntimeError(`Cannot remove element from non-array target.`, node.target.loc);
     }
-    targetObj.splice(indexVal, 1);
+    targetObj.splice(this.checkIndex(targetObj, indexVal, node.target.loc), 1);
+  }
+
+  // The one bounds check behind `a[i]`, `a[i] = value`, `rm a[i]` and `get(i)`. The checker has
+  // already established that the target is an array and the index an int; whether that index
+  // exists is a question only the array's length at run time can answer.
+  private checkIndex(target: any[], index: number, loc: SourceLocation): number {
+    if (!Number.isInteger(index) || index < 0 || index >= target.length) {
+      throw new RuntimeError(
+        `Index ${index} is out of bounds for an array of length ${target.length}.`,
+        loc
+      );
+    }
+    return index;
   }
 
   private executeFunctionDecl(node: FunctionDeclNode, env: Environment): void {
@@ -472,7 +485,10 @@ export class Interpreter {
       case "IndexAccess": {
         const target = this.evaluate(expr.object, env);
         const index = this.evaluate(expr.index, env);
-        return target[index];
+        // `a[i]` is checked, so an off-by-one is a failure the program can see rather than a
+        // silent `undefined`. `at()` (counts from the end, `undefined` out of range) and
+        // `get()` (the checked method form) remain available on the array itself.
+        return target[this.checkIndex(target, index, expr.loc)];
       }
       case "Range": {
         const start = this.evaluate(expr.start, env);
@@ -494,12 +510,7 @@ export class Interpreter {
           if (prop === "last") return obj.length > 0 ? obj[obj.length - 1] : undefined;
           if (prop === "asString") return () => obj.toString();
           if (prop === "at") return (idx: number) => obj.at(idx);
-          if (prop === "get") return (idx: number) => {
-            if (idx < 0 || idx >= obj.length) {
-              throw new RuntimeError(`Index out of bounds for array of length ${obj.length}`, expr.loc);
-            }
-            return obj[idx];
-          };
+          if (prop === "get") return (idx: number) => obj[this.checkIndex(obj, idx, expr.loc)];
           if (prop === "find") return (pred: Function) => obj.find((el: any) => pred(el));
           if (prop === "findIndex") return (pred: Function) => obj.findIndex((el: any) => pred(el));
           if (prop === "join") return (sep: string = ",") => obj.join(sep);
@@ -535,7 +546,7 @@ export class Interpreter {
         } else if (expr.target.type === "IndexAccess") {
           const targetObj = this.evaluate(expr.target.object, env);
           const indexVal = this.evaluate(expr.target.index, env);
-          targetObj[indexVal] = value;
+          targetObj[this.checkIndex(targetObj, indexVal, expr.target.loc)] = value;
         } else if (expr.target.type === "MemberExpr") {
           const targetObj = this.evaluate(expr.target.object, env);
           targetObj[expr.target.property] = value;

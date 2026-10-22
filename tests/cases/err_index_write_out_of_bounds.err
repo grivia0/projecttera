@@ -1,0 +1,5 @@
+[Runtime Error] Index 3 is out of bounds for an array of length 3.
+  --> tests/cases/err_index_write_out_of_bounds.tera:3:5
+  |
+3 | nums[3] = 4
+  |     ^

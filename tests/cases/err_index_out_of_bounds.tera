@@ -1,0 +1,3 @@
+// Reading past the end stops the program instead of yielding `undefined`.
+let nums: [1, 2, 3] => arr[int]
+print(nums[3])

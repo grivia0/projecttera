@@ -1,0 +1,5 @@
+[Type Error] Function 'sign' is declared to return 'int' but can finish without returning a value.
+  --> tests/cases/err_missing_return.tera:2:4
+  |
+2 | fn sign(n: int) => int {
+  |    ^

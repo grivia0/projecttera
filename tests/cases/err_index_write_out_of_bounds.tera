@@ -1,0 +1,3 @@
+// Writing past the end does not grow the array; `add` is the way to append.
+let nums: [1, 2, 3] => arr[int]
+nums[3] = 4

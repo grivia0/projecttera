@@ -39,7 +39,7 @@ ab
 flag is true
 ```
 
-`npm test` builds the project and then runs the whole suite: 81 programs plus 4 CLI checks.
+`npm test` builds the project and then runs the whole suite: 89 programs plus 4 CLI checks.
 
 ## Requirements
 
@@ -172,7 +172,7 @@ node tests/run.mjs arrays       # only the cases whose name contains "arrays"
 The suite runs every program in `tests/cases/` through the built CLI and compares stdout, stderr
 and the exit code byte for byte against the expectation files stored next to it (`.out`, `.err`,
 `.exit`). Four further checks cover the CLI itself — `--help`, no arguments, a missing file, and
-the `index.ts` example — so `npm test` ends with `85 passed, 0 failed, 85 total`. 50 of the 81
+the `index.ts` example — so `npm test` ends with `93 passed, 0 failed, 93 total`. 56 of the 89
 programs are deliberate failures, which is what keeps the diagnostics pinned down as tightly as
 the behaviour. `tests/README.md` explains the layout and how to add a case.
 
@@ -182,10 +182,16 @@ the behaviour. `tests/README.md` explains the layout and how to add a case.
   may be absent — that arrives with optionals in `1.3.0`.
 * Numeric literals always type as `int`; the `float` annotation cannot be satisfied yet, and
   `float(x)` is rejected for the same reason: there are no float values to convert.
-* `at`, `first` and `last` follow JavaScript: `at(-1)` counts from the end and an out-of-bounds
-  `at` yields `undefined`. Use `get()` when a bounds check is wanted.
-* There is no return-on-all-paths analysis, so a function that skips `return` on some path
-  evaluates to `undefined`.
+* `a[i]` is bounds-checked: an out-of-range read, write or `rm` stops the program with a caret at
+  the index. `at`, `first` and `last` follow JavaScript instead — `at(-1)` counts from the end and
+  an out-of-bounds `at` yields `undefined`.
+* There is no unit/void return type — `=> T` is mandatory — so a helper that only prints has to
+  return a value too. The return check below is what makes that explicit rather than a silent
+  `undefined`.
+* Return-on-all-paths is conservative. A function annotated `=> T` must end in a `return`, or in an
+  `if`/`else` or `switch` with a `default` where every branch returns, or in a `while (true)` /
+  `for (;;)` that never breaks. A `return` inside a loop whose condition can be false does not
+  count, so a `return` after the loop is still required.
 * A C-style `for` loop without an update clause never terminates if its body uses `continue` —
   the same as C.
 * Members of the built-in types are read-only: `nums.leng = 4` is a type error.

@@ -1,0 +1,14 @@
+// `a[i]` is checked for reads and writes. `at` and `get` keep their own rules: `at` counts
+// from the end and answers `undefined` out of range, `get` fails exactly like `a[i]` does.
+let nums: [10, 20, 30] => arr[int]
+print("nums[0]:", nums[0])
+print("nums[2]:", nums[2])
+nums[1] = 99
+print("after write:", nums.asString())
+print("at(-1):", nums.at(-1))
+print("get(2):", nums.get(2))
+
+let copy: [1, 2, 3] => arr[int]
+rm copy[1]
+print("after rm:", copy.asString())
+print("copy[1]:", copy[1])

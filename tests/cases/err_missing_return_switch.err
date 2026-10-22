@@ -1,0 +1,5 @@
+[Type Error] Function 'label' is declared to return 'string' but can finish without returning a value.
+  --> tests/cases/err_missing_return_switch.tera:2:4
+  |
+2 | fn label(n: int) => string {
+  |    ^

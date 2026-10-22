@@ -60,9 +60,11 @@ why it goes first and alone.
   policy for `int` is written down (documented as IEEE-754 safe-integer range unless `BigInt` is
   chosen).
 * Definite assignment: `let x: int` without an initialiser is a compile error.
-* Return on all paths: a function annotated `=> int` that can fall through is a compile error.
+* Return on all paths: a function annotated `=> int` that can fall through is a compile error —
+  **landed** for `if`/`else`, `switch` with a `default`, and `while (true)`/`for (;;)` with no
+  `break`; a loop whose condition can be false still needs a `return` after it.
 * Checked indexing: `a[i]` out of bounds is a runtime error; `at`/`get` keep their documented
-  escape hatches.
+  escape hatches — **landed** for reads, writes and `rm a[i]`, with `get` sharing the message.
 * `input()` reads exactly one line and reports end-of-input as an error (optionals arrive in `1.3.0`
   and turn it into `string?`).
 * String escapes (`\n`, `\t`, `\"`, `\\`, `\u{...}`) and a raw-string form. The unused `BACKTICK`
@@ -99,8 +101,13 @@ keyword in expression position is the conversion, so `print(int)` is a parse err
 `conversions_int`, `conversions_bool`, `conversions_input`, `conversions_declaration`,
 `err_conversions_int`, `err_conversions_bool`, `err_conversions_operand`,
 `err_conversions_string_operand`, `err_conversions_declaration_type`, `err_conversions_arity`,
-`err_conversions_range`, `err_conversions_float`, `err_conversions_keyword`) pin it; the suite is
-`85 passed`.
+`err_conversions_range`, `err_conversions_float`, `err_conversions_keyword`) pin it.
+
+The return-on-all-paths rule and checked indexing followed: `returns_paths` and `index_bounds` pin
+the accepted shapes, while `err_missing_return`, `err_missing_return_switch`,
+`err_missing_return_break`, `err_index_out_of_bounds`, `err_index_negative` and
+`err_index_write_out_of_bounds` pin the rejected ones. The suite is `93 passed` — 89 programs, 56
+of them deliberate failures, plus 4 CLI checks.
 
 **Wiki:** Variables, Types, Operators, Strings, Arrays (full rewrite of the examples), plus a new
 Conversions section. One page for `input()` behaviour.

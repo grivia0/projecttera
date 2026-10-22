@@ -1,0 +1,11 @@
+// `break` leaves the loop, so the end of the function is reachable after it.
+fn countTo(limit: int) => int {
+  let i: 0 => int
+  while (true) {
+    if (i == limit) {
+      break
+    }
+    i = i + 1
+  }
+}
+print(countTo(2))

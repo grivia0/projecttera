@@ -55,6 +55,55 @@ decides: `let n: int("12")` converts, `let n: int` declares a type and no value 
 assigned later). `cases/conversions_declaration.tera` pins the first form,
 `cases/err_conversions_declaration_type.tera` pins that the conversion's type is the binding's type.
 
+## Checks that keep a value from appearing out of nowhere
+
+Two rules in `TypeChecker.ts` and `Interpreter.ts` exist because the alternative is a program that
+reads something the language never produced.
+
+### Return on all paths
+
+A function annotated `=> T` must not be able to reach its closing brace. The analysis is
+conservative — it knows only about constructs it can see, and assumes nothing about conditions:
+
+| Shape                                   | Counts as returning                    |
+| --------------------------------------- | -------------------------------------- |
+| `return x`                              | always (later statements are unreachable) |
+| `if (c) { … } else { … }`               | when both branches do                  |
+| `switch`                                | when a `default` exists and every case does |
+| `while (true)` / `for (;;)`             | when nothing breaks out of that loop   |
+
+`while (x < n) { return … }` does **not** count, because the loop can be skipped. `cases/returns_paths.tera`
+pins the accepted shapes; `cases/err_missing_return.tera` (no `else`),
+`cases/err_missing_return_switch.tera` (no `default`) and `cases/err_missing_return_break.tera`
+(a `break` leaves the loop) pin the rejected ones:
+
+```text
+[Type Error] Function 'sign' is declared to return 'int' but can finish without returning a value.
+  --> tests/cases/err_missing_return.tera:2:4
+  |
+2 | fn sign(n: int) => int {
+  |    ^
+```
+
+### Checked indexing
+
+`a[i]` — a read, a write, and `rm a[i]` — fails at run time outside `0 … a.leng - 1`, so an
+off-by-one is a diagnostic with a caret instead of a silent `undefined`:
+
+```text
+[Runtime Error] Index 3 is out of bounds for an array of length 3.
+  --> tests/cases/err_index_out_of_bounds.tera:3:11
+  |
+3 | print(nums[3])
+  |           ^
+```
+
+`at` keeps its JavaScript behaviour (`at(-1)` counts from the end, out of range is `undefined`)
+and `get` is the checked method form, which reports the same message. `cases/index_bounds.tera`
+pins the accepted side together with `at(-1)`, `get` and `rm`;
+`cases/err_index_out_of_bounds.tera`, `cases/err_index_negative.tera` and
+`cases/err_index_write_out_of_bounds.tera` pin the rejected one.
+
 ## Running
 
 ```bash

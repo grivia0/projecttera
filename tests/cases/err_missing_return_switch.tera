@@ -1,0 +1,8 @@
+// A `switch` without a `default` leaves values that reach the end of the function.
+fn label(n: int) => string {
+  switch (n) {
+    case 1:
+      return "one"
+  }
+}
+print(label(1))

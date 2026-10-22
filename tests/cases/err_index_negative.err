@@ -1,0 +1,5 @@
+[Runtime Error] Index -1 is out of bounds for an array of length 3.
+  --> tests/cases/err_index_negative.tera:3:11
+  |
+3 | print(nums[-1])
+  |           ^
