@@ -1,0 +1,5 @@
+[Runtime Error] Cannot convert 9007199254740992.0 to an int: it does not fit in a Tera int.
+  --> tests/cases/err_int_from_float_range.tera:2:10
+  |
+2 | print(int(9007199254740992.0))
+  |          ^

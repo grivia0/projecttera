@@ -1,0 +1,5 @@
+[Runtime Error] Integer overflow: 9007199254740991 * 2 does not fit in a Tera int (whole numbers are exact from -9007199254740991 to 9007199254740991).
+  --> tests/cases/err_int_overflow_mul.tera:2:7
+  |
+2 | print(9007199254740991 * 2)
+  |       ^

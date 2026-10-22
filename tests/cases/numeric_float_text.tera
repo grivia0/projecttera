@@ -1,0 +1,12 @@
+// A float prints as the shortest text that reads back as the same value, keeping `.0` when whole.
+print(0.1 + 0.2)
+print(1.0 / 3.0)
+print(1.0 / 4.0 * 4.0)
+print(10.0 * 10.0)
+print(100.0 / 4.0)
+print(0.5 % 0.2)
+// Arrays format their elements the way `print` formats one value.
+let xs: [1.0, 2.5] => arr[float]
+print(xs.asString())
+print(xs.join(" - "))
+print("x=" + string(xs[0]))

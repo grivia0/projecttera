@@ -1,0 +1,5 @@
+[Type Error] Cannot assign value of type 'int' to target type 'float' for variable 'x'.
+  --> tests/cases/err_float_annotation.tera:2:5
+  |
+2 | let x: 3 => float
+  |     ^

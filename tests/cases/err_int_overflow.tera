@@ -1,0 +1,3 @@
+// A whole number a Tera int cannot hold is a failure, not a rounded value.
+let big: 9007199254740991 => int
+print(big + 1)

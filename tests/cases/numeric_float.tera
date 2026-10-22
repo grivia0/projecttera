@@ -1,0 +1,14 @@
+// A literal with a fraction is a float, and a whole float keeps its `.0` when printed.
+let half: 0.5 => float
+print(2.5)
+print(1.0)
+print(half * 2)
+print(half + 1)
+print(2.0 ** 3)
+print(-half)
+// One float on either side is enough to make the result a float.
+print(1 / 2.0)
+print(3.0 / 2)
+// Comparing an int with a float asks a numeric question, so the two may be mixed.
+print(1.0 == 1)
+print(1 < 1.5)

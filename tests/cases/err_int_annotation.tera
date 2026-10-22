@@ -1,0 +1,3 @@
+// Nor is there an implicit float → int: dropping the fraction has to be written as `int(2.5)`.
+let n: 2.5 => int
+print(n)

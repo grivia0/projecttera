@@ -1,0 +1,7 @@
+// A line read into a float is a float: it prints with its `.0` and divides like one.
+let price: input("price> ") => float
+let count: input("count> ") => int
+print(price)
+print(price * 3)
+print(float(count))
+print(price / 4)

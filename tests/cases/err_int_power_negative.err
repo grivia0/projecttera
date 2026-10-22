@@ -1,0 +1,5 @@
+[Runtime Error] Cannot raise an int to the negative exponent -1: the result would not be an int. Use a float base such as 2.0 ** -1.
+  --> tests/cases/err_int_power_negative.tera:2:7
+  |
+2 | print(2 ** -1)
+  |       ^

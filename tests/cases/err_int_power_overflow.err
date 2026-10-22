@@ -1,0 +1,5 @@
+[Runtime Error] Integer overflow: 2 ** 64 does not fit in a Tera int (whole numbers are exact from -9007199254740991 to 9007199254740991).
+  --> tests/cases/err_int_power_overflow.tera:2:7
+  |
+2 | print(2 ** 64)
+  |       ^

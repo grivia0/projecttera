@@ -1,4 +1,4 @@
-[Type Error] 'string' cannot convert a value of type 'arr[int]'. It converts 'string', 'int' and 'boolean'.
+[Type Error] 'string' cannot convert a value of type 'arr[int]'. It converts 'string', 'int', 'float' and 'boolean'.
   --> tests/cases/err_conversions_string_operand.tera:2:13
   |
 2 | print(string([1, 2]))

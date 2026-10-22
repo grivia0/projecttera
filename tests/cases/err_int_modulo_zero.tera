@@ -1,0 +1,2 @@
+// The remainder of a division by zero is no more defined than the quotient.
+print(1 % 0)

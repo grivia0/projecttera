@@ -517,7 +517,10 @@ export class Parser {
   private primary(): ExpressionNode {
     if (this.match(TokenType.NUMBER)) {
       const token = this.previous();
-      return { type: "Literal", value: token.value, rawType: "number", loc: this.at(token) };
+      // The lexer emits one NUMBER token for both numeric types, so the spelling decides:
+      // a fraction is what makes a literal a float (see `Lexer.number`).
+      const rawType = token.lexeme.includes(".") ? "float" : "int";
+      return { type: "Literal", value: token.value, rawType, loc: this.at(token) };
     }
     if (this.match(TokenType.STRING)) {
       const token = this.previous();

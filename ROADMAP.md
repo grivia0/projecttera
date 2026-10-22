@@ -45,7 +45,7 @@ a version bump and release notes for one or two members, with no wiki benefit.
 | `1.5.0` | Programs | `import` and multi-file projects, project manifest, standard library (strings, arrays, math, io, json, time) | 1 new, 5–6 new reference pages | ~3.5 weeks |
 | `1.6.0` | Tooling & depth | REPL, `tera fmt`, `tera test`, LSP, explicit-stack VM (deep recursion), spec, CI | 2 new | ongoing |
 
-Suite size targets: 82 → ~100 → ~115 → ~130 → ~140 → ~160 (the library release adds table-driven
+Suite size targets: 107 → ~115 → ~130 → ~140 → ~160 (the library release adds table-driven
 member tests rather than one program per member).
 
 ## 1.1.0 — Foundation
@@ -58,7 +58,10 @@ why it goes first and alone.
 * Numeric model: `int` and `float` become real and distinct — literal typing, `/`, `%`, `**`,
   comparison, printing; `1 / 0` and `0 / 0` become errors instead of `Infinity`/`NaN`; the overflow
   policy for `int` is written down (documented as IEEE-754 safe-integer range unless `BigInt` is
-  chosen).
+  chosen). **Landed**: `int` is exact from `-9007199254740991` to `9007199254740991` and a result
+  that leaves it stops the program; `int / int` truncates toward zero; `int % int` keeps the sign of
+  the dividend; `int ** -n` asks for a float base; a float prints as the shortest text that reads
+  back as the same value, keeping `.0` when whole.
 * Definite assignment: `let x: int` without an initialiser is a compile error.
 * Return on all paths: a function annotated `=> int` that can fall through is a compile error —
   **landed** for `if`/`else`, `switch` with a `default`, and `while (true)`/`for (;;)` with no
@@ -69,8 +72,9 @@ why it goes first and alone.
   and turn it into `string?`).
 * String escapes (`\n`, `\t`, `\"`, `\\`, `\u{...}`) and a raw-string form. The unused `BACKTICK`
   token is either wired to interpolation or deleted.
-* Conversions: `string(x)`, `int(s)`, `float(s)`, `bool(s)`. `string`, `int` and `bool` have
-  landed; `float(s)` waits for the numeric model, because it has no values to produce yet.
+* Conversions: `string(x)`, `int(s)`, `float(s)`, `bool(s)`. `string`, `int`, `float` and `bool`
+  have all landed: `int(float)` truncates toward zero and range-checks, and `float(int)` /
+  `float(text)` are the only ways to reach a float from a non-float.
 * Empty collections: `let a: [] => arr[int]` is accepted; `[]` adopts the annotation's element type.
 * Compound assignment: `+=`, `-=`, `*=`, `/=`, `%=`.
 * `const` declarations.
@@ -106,8 +110,15 @@ keyword in expression position is the conversion, so `print(int)` is a parse err
 The return-on-all-paths rule and checked indexing followed: `returns_paths` and `index_bounds` pin
 the accepted shapes, while `err_missing_return`, `err_missing_return_switch`,
 `err_missing_return_break`, `err_index_out_of_bounds`, `err_index_negative` and
-`err_index_write_out_of_bounds` pin the rejected ones. The suite is `93 passed` — 89 programs, 56
-of them deliberate failures, plus 4 CLI checks.
+`err_index_write_out_of_bounds` pin the rejected ones.
+
+The numeric model landed next, in `Numeric.ts` plus the checker's `expressionTypes`: `numeric_int`,
+`numeric_float`, `numeric_float_text`, `numeric_conversions` and `numeric_input` pin the behaviour,
+while `err_int_overflow`, `err_int_overflow_mul`, `err_int_overflow_update`,
+`err_int_overflow_literal`, `err_int_division_zero`, `err_float_division_zero`,
+`err_int_modulo_zero`, `err_int_power_negative`, `err_int_power_overflow`, `err_int_from_float_range`,
+`err_float_range`, `err_float_annotation` and `err_int_annotation` pin the failures. The suite is
+`111 passed` — 107 programs, 69 of them deliberate failures, plus 4 CLI checks.
 
 **Wiki:** Variables, Types, Operators, Strings, Arrays (full rewrite of the examples), plus a new
 Conversions section. One page for `input()` behaviour.

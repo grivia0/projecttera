@@ -1,0 +1,9 @@
+// `int(float)` drops the fraction toward zero; `float(...)` makes a float out of any number or text.
+print(int(3.7))
+print(int(-3.7))
+print(int(3.0) + 1)
+print(float(3))
+print(float("2.5"))
+print(float(1.5))
+print(string(3.0))
+print(string(3))

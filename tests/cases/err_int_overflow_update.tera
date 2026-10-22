@@ -1,0 +1,4 @@
+// `++` is int arithmetic too, so it stops at the top of the range.
+let big: 9007199254740991 => int
+big++
+print(big)

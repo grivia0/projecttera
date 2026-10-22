@@ -1,0 +1,3 @@
+// There is no implicit int → float: a float annotation needs a float value, so `3.0` not `3`.
+let x: 3 => float
+print(x)

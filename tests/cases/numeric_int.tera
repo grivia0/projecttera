@@ -1,0 +1,10 @@
+// `int` arithmetic is exact: `+ - * % **` stay whole, and `/` truncates toward zero.
+print(7 / 2)
+print(-7 / 2)
+print(7 / -2)
+print(7 % 2)
+print(-7 % 2)
+print(2 + 3 * 4)
+print(2 ** 10)
+print((-2) ** 3)
+print(10 - 3 - 2)

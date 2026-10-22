@@ -1,4 +1,4 @@
-[Type Error] 'int' cannot convert a value of type 'boolean'. It converts 'string' and 'int'.
+[Type Error] 'int' cannot convert a value of type 'boolean'. It converts 'string', 'int' and 'float'.
   --> tests/cases/err_conversions_operand.tera:2:10
   |
 2 | print(int(true))

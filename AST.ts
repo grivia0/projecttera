@@ -131,7 +131,7 @@ export type ExpressionNode =
 export interface LiteralNode extends ASTNode {
   type: "Literal";
   value: any;
-  rawType: "number" | "string" | "boolean" | "undefined";
+  rawType: "int" | "float" | "string" | "boolean" | "undefined";
 }
 
 export interface IdentifierNode extends ASTNode {

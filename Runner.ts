@@ -19,6 +19,10 @@ export function runSource(source: string): void {
   const typeChecker = new TypeChecker();
   typeChecker.check(ast);
 
-  const interpreter = new Interpreter();
+  // The interpreter runs the AST the checker just walked, and takes the checker's per-expression
+  // types with it: `int` and `float` are the same JavaScript number, so `int / int` truncating
+  // and `print(3.0)` saying `3.0` are decisions only the checker can make (see
+  // `TypeChecker.expressionTypes`).
+  const interpreter = new Interpreter(typeChecker.expressionTypes);
   interpreter.interpret(ast);
 }

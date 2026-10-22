@@ -34,26 +34,51 @@ the second stops the program.
 
 ## Conversions
 
-`string(x)`, `int(x)` and `bool(x)` turn one value into the named type, which is what lets a
-number join a message (`"n=" + string(n)`) or a line of text become a number (`int(raw) + 1`)
-without an annotation. They are deliberate, not JavaScript-style coercions: the operand types
-are fixed, so `int(true)` is a type error rather than a guessed `1`.
+`string(x)`, `int(x)`, `float(x)` and `bool(x)` turn one value into the named type, which is what
+lets a number join a message (`"n=" + string(n)`) or a line of text become a number
+(`int(raw) + 1`) without an annotation. They are deliberate, not JavaScript-style coercions: the
+operand types are fixed, so `int(true)` is a type error rather than a guessed `1`.
 
-| Call        | Accepts                  | Produces                            |
-| ----------- | ------------------------ | ----------------------------------- |
-| `string(x)` | `string`, `int`, `bool`  | the value as text                   |
-| `int(x)`    | `string`, `int`          | the whole number the text spells    |
-| `bool(x)`   | `string`, `bool`         | `true` or `false`                   |
+| Call        | Accepts                          | Produces                            |
+| ----------- | -------------------------------- | ----------------------------------- |
+| `string(x)` | `string`, `int`, `float`, `bool` | the value as text (a float keeps `.0` when whole) |
+| `int(x)`    | `string`, `int`, `float`         | the whole number; a float truncates toward zero |
+| `float(x)`  | `string`, `int`, `float`         | the number as a float               |
+| `bool(x)`   | `string`, `bool`                 | `true` or `false`                   |
 
 `int(" 42 ")` and `bool(" TRUE ")` ignore the spaces around the value, exactly like a line read
 into those types; `int("4.5")`, `int("abc")`, `bool("maybe")` and a run of digits too long to be
-held exactly all stop the program where the conversion is written. `float(x)` is rejected until
-floats exist. The keyword on its own is not a value: `print(int)` is a parse error that says so.
+held exactly all stop the program where the conversion is written. `float("4,5")` does the same,
+while `float("2.5")` and `float("3")` are both floats. The keyword on its own is not a value:
+`print(int)` is a parse error that says so.
 
 A conversion right after `let name:` is the initial value, not an annotation — the parenthesis
 decides: `let n: int("12")` converts, `let n: int` declares a type and no value (and can be
 assigned later). `cases/conversions_declaration.tera` pins the first form,
 `cases/err_conversions_declaration_type.tera` pins that the conversion's type is the binding's type.
+
+## Numbers
+
+`int` and `float` are separate types, and the runtime keeps them apart with the checker's
+`expressionTypes`: both are a JavaScript number, so every numeric operation asks the checker what
+the operands are before it decides how to behave.
+
+| Rule | Behaviour | Pinned by |
+| --- | --- | --- |
+| Range | `int` is exact from `-9007199254740991` to `9007199254740991`; leaving it stops the program | `err_int_overflow`, `err_int_overflow_mul`, `err_int_overflow_update`, `err_int_overflow_literal`, `err_int_power_overflow` |
+| `int / int` | truncates toward zero (`-7 / 2` is `-3`), never a fraction | `numeric_int` |
+| `int % int` | keeps the sign of the dividend (`-7 % 2` is `-1`) | `numeric_int` |
+| Division by zero | an error for `int` and for `float`, `/` and `%` | `err_int_division_zero`, `err_float_division_zero`, `err_int_modulo_zero` |
+| `**` | an `int` base with a negative exponent is an error; `int` powers are range-checked | `err_int_power_negative`, `err_int_power_overflow` |
+| Mixing | one `float` operand promotes `+ - * / % **` and comparisons to `float`; the annotation does not | `numeric_float`, `err_float_annotation`, `err_int_annotation` |
+| Printing | the shortest text that reads back as the same value, `.0` kept when whole | `numeric_float_text` |
+| Conversions | `int(float)` truncates toward zero and range-checks; `float(int)` and `float(text)` produce a float | `numeric_conversions`, `err_int_from_float_range`, `err_float_range` |
+| Input | `input()` into a `float` reads it as a float | `numeric_input` |
+
+`Numeric.ts` holds the rules themselves — `add`, `subtract`, `multiply`, `divide`, `modulo`,
+`power` and `floatText` — so the interpreter only chooses which one to call. `cases/err_float_range.tera`
+builds its 321 digits with string `+` rather than writing them out, so the source line stays
+readable even though the message has to quote the whole number.
 
 ## Checks that keep a value from appearing out of nowhere
 

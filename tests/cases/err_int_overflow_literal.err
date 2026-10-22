@@ -1,0 +1,5 @@
+[Lexer Error] Integer literal '9007199254740992' is outside the Tera int range (-9007199254740991 to 9007199254740991).
+  --> tests/cases/err_int_overflow_literal.tera:2:7
+  |
+2 | print(9007199254740992)
+  |       ^

@@ -1,0 +1,2 @@
+// Multiplication leaves the int range the same way addition does.
+print(9007199254740991 * 2)

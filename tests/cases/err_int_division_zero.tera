@@ -1,0 +1,2 @@
+// `int / 0` has no answer, so the program stops instead of producing Infinity.
+print(1 / 0)

@@ -1,0 +1,5 @@
+[Runtime Error] Division by zero: a float cannot be divided by 0.
+  --> tests/cases/err_float_division_zero.tera:2:7
+  |
+2 | print(1.0 / 0.0)
+  |       ^

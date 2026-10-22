@@ -1,0 +1,2 @@
+// `int(3.7)` drops the fraction, but a float too large to hold as an int is a failure.
+print(int(9007199254740992.0))

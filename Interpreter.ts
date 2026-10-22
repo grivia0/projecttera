@@ -1,6 +1,17 @@
 import type { SourceLocation } from "./TokenType.js";
 import { RuntimeError } from "./Errors.js";
 import { StdinLines } from "./Stdin.js";
+import {
+  addInts,
+  divideFloats,
+  divideInts,
+  floatText,
+  moduloFloats,
+  moduloInts,
+  multiplyInts,
+  powerInts,
+  subtractInts,
+} from "./Numeric.js";
 import type {
   ProgramNode,
   StatementNode,
@@ -115,6 +126,25 @@ function parseIntText(text: string, wording: TextWording, loc?: SourceLocation):
   return value;
 }
 
+// `float("2.5")` and `input() => float` accept a plain decimal: digits with an optional
+// fraction, optionally signed. Spaces around it are fine. There is no exponent or separator
+// *literal* syntax yet (`1e3`, `1_000`), so the text form takes none either — the two agree on
+// what a float looks like, which is the point of having the parser and these helpers together.
+function parseFloatText(text: string, wording: TextWording, loc?: SourceLocation): number {
+  const trimmed = text.trim();
+  if (!/^[+-]?(\d+(\.\d+)?|\.\d+)$/.test(trimmed)) {
+    throw new RuntimeError(`Cannot ${wording.verb} '${trimmed}' ${wording.preposition} a float.`, loc);
+  }
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) {
+    throw new RuntimeError(
+      `Cannot ${wording.verb} '${trimmed}' ${wording.preposition} a float: it is out of range.`,
+      loc
+    );
+  }
+  return value;
+}
+
 // `true`/`false` in any casing, which is the same rule `input() => bool` follows.
 function parseBoolText(text: string, wording: TextWording, loc?: SourceLocation): boolean {
   const trimmed = text.trim();
@@ -140,12 +170,14 @@ function readLineAs(line: any, declaredType: string, loc: SourceLocation): any {
       return text;
     case "int":
       return parseIntText(text, READ_TEXT, loc);
+    case "float":
+      return parseFloatText(text, READ_TEXT, loc);
     case "boolean":
       return parseBoolText(text, READ_TEXT, loc);
     default:
       // Unreachable: the type checker reports this annotation before the program runs.
       throw new RuntimeError(
-        `input() cannot produce a value of type '${declaredType}'. It can only produce 'int', 'string' or 'bool'.`,
+        `input() cannot produce a value of type '${declaredType}'. It can only produce 'int', 'float', 'string' or 'bool'.`,
         loc
       );
   }
@@ -153,9 +185,11 @@ function readLineAs(line: any, declaredType: string, loc: SourceLocation): any {
 
 // Best-effort Tera type of a runtime value, used for bindings whose type the program never
 // wrote down but the checker still infers — the loop variable of `for n: nums` gets the
-// element type of `nums`, and this is the runtime half of that agreement. Non-scalar values
-// (arrays, function values) report nothing, which is fine: the checker refuses to read a
-// line into anything but `int`, `string` and `bool` in the first place.
+// element type of `nums`, and this is the runtime half of that agreement. An int and a float
+// are both JavaScript numbers, so a value alone cannot say which; callers prefer the checker's
+// answer (`elementTypeOf`) and only fall back to this. Non-scalar values (arrays, function
+// values) report nothing, which is fine: the checker refuses to read a line into anything but
+// `int`, `float`, `string` and `bool` in the first place.
 function teraTypeOfValue(value: any): string | undefined {
   if (typeof value === "string") return "string";
   if (typeof value === "number") return "int";
@@ -181,17 +215,48 @@ export class Interpreter {
   // read ahead of a newline are kept for the next call, and anything still unread when the
   // program ends is dropped.
   private stdin = new StdinLines();
+  // What the type checker decided each expression's type is (see `TypeChecker.expressionTypes`).
+  // An int and a float are the same JavaScript number, so the runtime asks here instead of
+  // trying to tell them apart by looking at the value.
+  private expressionTypes: WeakMap<ExpressionNode, string> | undefined;
+  // The `print` built-in, kept by reference: `print` is an ordinary identifier and a program may
+  // shadow it, so a call is only the built-in when it resolves to this very function.
+  private printBuiltin: (...args: any[]) => void = (...args: any[]) => console.log(...args);
+  // The built-in conversions, keyed by the keyword that spells them. A conversion is a type
+  // keyword, so it can never be shadowed and the name alone identifies it. Each one also takes
+  // the operand's static type, because that is what says whether `int(1.7)` has a fraction to
+  // drop and whether `string(3.0)` prints `3.0` or `3`.
+  private conversions = new Map<string, (value: any, sourceType?: string) => any>();
 
-  constructor() {
+  constructor(expressionTypes?: WeakMap<ExpressionNode, string>) {
+    this.expressionTypes = expressionTypes;
     this.globalEnv = new Environment();
     this.setupGlobals();
   }
 
+  // The type the checker decided for an expression. Undefined only when the interpreter is run
+  // without a checker (the AST was built by hand); every path that needs the answer treats
+  // "unknown" as the plain JavaScript behaviour.
+  private typeOf(expr: ExpressionNode): string | undefined {
+    return this.expressionTypes?.get(expr);
+  }
+
+  // The element type of an array expression (`arr[float]` → `float`), for the text operations
+  // that format the elements one by one.
+  private elementTypeOf(expr: ExpressionNode): string | undefined {
+    const type = this.typeOf(expr);
+    return type && type.startsWith("arr[") ? type.slice(4, -1) : undefined;
+  }
+
+  // How one value is shown to the program. A float gets its own text form so a whole float
+  // keeps its `.0` (`print(3.0)` says `3.0`, never `3`); everything else is handed on as-is.
+  private present(value: any, type: string | undefined): any {
+    return type === "float" ? floatText(value) : value;
+  }
+
   private setupGlobals(): void {
     // Built-in print statement / global function.
-    this.globalEnv.define("print", (...args: any[]) => {
-      console.log(...args);
-    });
+    this.globalEnv.define("print", this.printBuiltin);
 
     this.globalEnv.define("input", (promptMsg?: string) => {
       if (promptMsg !== undefined) {
@@ -209,17 +274,37 @@ export class Interpreter {
       return line;
     });
 
-    // Conversions: `string(x)`, `int(x)`, `bool(x)`. The checker has already limited the operand
-    // to the types each one accepts, so a value that is already of the target type passes
-    // straight through and everything else is text to be parsed. `float(...)` has no entry:
-    // there are no float values yet, and the checker rejects the call before this point.
-    this.globalEnv.define("string", (value: any) => String(value));
-    this.globalEnv.define("int", (value: any) =>
-      typeof value === "number" ? value : parseIntText(String(value), CONVERT_TEXT)
+    // Conversions: `string(x)`, `int(x)`, `float(x)`, `bool(x)`. The checker has already
+    // limited the operand to the types each one accepts, so a value that is already of the
+    // target type passes straight through and everything else is text to be parsed.
+    this.conversions.set("string", (value, sourceType) =>
+      sourceType === "float" ? floatText(value) : String(value)
     );
-    this.globalEnv.define("bool", (value: any) =>
+    this.conversions.set("int", (value, sourceType) => {
+      if (sourceType === "float") {
+        // `int(3.7)` is `3` and `int(-3.7)` is `-3`: a conversion drops the fraction the same
+        // way `int / int` does, by truncating toward zero (decision D17).
+        const truncated = Math.trunc(value);
+        if (!Number.isSafeInteger(truncated)) {
+          throw new RuntimeError(
+            `Cannot convert ${floatText(value)} to an int: it does not fit in a Tera int.`
+          );
+        }
+        return truncated;
+      }
+      return typeof value === "number" ? value : parseIntText(String(value), CONVERT_TEXT);
+    });
+    this.conversions.set("float", (value, sourceType) =>
+      sourceType === "string" ? parseFloatText(String(value), CONVERT_TEXT) : value
+    );
+    this.conversions.set("bool", (value) =>
       typeof value === "boolean" ? value : parseBoolText(String(value), CONVERT_TEXT)
     );
+    // The conversions are also globals so that evaluating the callee of `int("4")` finds a
+    // function; the call itself goes through the map above (see `evaluateCallExpr`).
+    for (const [name, convert] of this.conversions) {
+      this.globalEnv.define(name, convert);
+    }
   }
 
   public interpret(program: ProgramNode): void {
@@ -402,8 +487,9 @@ export class Interpreter {
       const loopEnv = new Environment(env);
       // The checker gives the loop variable the element type of the iterable, so the runtime
       // records the same thing here — that is what lets `n = input()` inside the loop read
-      // the line as an int when iterating an `arr[int]`.
-      loopEnv.define(node.variable, item, teraTypeOfValue(item));
+      // the line as an int when iterating an `arr[int]` (and as a float over an `arr[float]`,
+      // which a value alone could not distinguish from an int).
+      loopEnv.define(node.variable, item, this.elementTypeOf(node.iterable) ?? teraTypeOfValue(item));
       try {
         if (Array.isArray(node.body)) {
           for (const stmt of node.body) this.execute(stmt, loopEnv);
@@ -504,16 +590,19 @@ export class Interpreter {
         const prop = expr.property;
 
         if (Array.isArray(obj)) {
+          // `asString` and `join` build text out of the elements, so they format each one the
+          // way `print` formats a value: a whole float keeps its `.0` (see `present`).
+          const elementType = this.elementTypeOf(expr.object);
           if (prop === "leng") return obj.length;
           if (prop === "isEmpty") return obj.length === 0;
           if (prop === "first") return obj[0];
           if (prop === "last") return obj.length > 0 ? obj[obj.length - 1] : undefined;
-          if (prop === "asString") return () => obj.toString();
+          if (prop === "asString") return () => obj.map((el: any) => this.present(el, elementType)).join(",");
           if (prop === "at") return (idx: number) => obj.at(idx);
           if (prop === "get") return (idx: number) => obj[this.checkIndex(obj, idx, expr.loc)];
           if (prop === "find") return (pred: Function) => obj.find((el: any) => pred(el));
           if (prop === "findIndex") return (pred: Function) => obj.findIndex((el: any) => pred(el));
-          if (prop === "join") return (sep: string = ",") => obj.join(sep);
+          if (prop === "join") return (sep: string = ",") => obj.map((el: any) => this.present(el, elementType)).join(sep);
           if (prop === "rmv") return (idx: number) => obj.splice(idx, 1)[0];
           if (prop === "add") return (...args: any[]) => obj.push(...args);
           if (prop === "shift") return () => obj.shift();
@@ -560,7 +649,39 @@ export class Interpreter {
       case "UnaryExpr":
         return this.evaluateUnary(expr.operator, expr.right, env, expr.isPostfix);
       case "CallExpr": {
+        // A conversion is recognised by name before anything is evaluated: it needs the
+        // operand's static type as well as its value, and the name is a type keyword, which a
+        // program cannot shadow.
+        const conversion =
+          expr.callee.type === "Identifier" ? this.conversions.get(expr.callee.name) : undefined;
+        if (conversion) {
+          const argument = expr.arguments[0];
+          if (!argument) {
+            throw new RuntimeError("A conversion takes exactly one argument.", expr.loc);
+          }
+          try {
+            return conversion(this.evaluate(argument, env), this.typeOf(argument));
+          } catch (error) {
+            // A conversion says what went wrong with the value, not where it was written, so the
+            // call site is attached here — the same way the other built-ins get one below.
+            if (error instanceof RuntimeError && !error.location) {
+              throw new RuntimeError(error.detail, expr.loc);
+            }
+            throw error;
+          }
+        }
+
         const callee = this.evaluate(expr.callee, env);
+
+        // `print` is the one built-in that formats its arguments, so each one reaches it
+        // together with the type the checker gave it: that is what makes `print(1.0)` say
+        // `1.0` while `print(1)` says `1` (see `present`).
+        if (callee === this.printBuiltin) {
+          const shown = expr.arguments.map((arg) => this.present(this.evaluate(arg, env), this.typeOf(arg)));
+          this.printBuiltin(...shown);
+          return undefined;
+        }
+
         const args = expr.arguments.map((arg) => this.evaluate(arg, env));
         if (typeof callee === "function") {
           try {
@@ -624,13 +745,20 @@ export class Interpreter {
     const left = this.evaluate(leftExpr, env);
     const right = this.evaluate(rightExpr, env);
 
+    // An int and a float are the same JavaScript number, so nothing about the values says
+    // whether `/` truncates or what `**` refuses: the checker's types do (decisions D13-D15).
+    // Two ints get the exact integer rules, anything with a float on either side gets float
+    // arithmetic, and the checker has already guaranteed the operands are numbers.
+    const bothInt = this.typeOf(leftExpr) === "int" && this.typeOf(rightExpr) === "int";
+    const loc = leftExpr.loc;
+
     switch (op) {
-      case "+": return left + right;
-      case "-": return left - right;
-      case "*": return left * right;
-      case "/": return left / right;
-      case "%": return left % right;
-      case "**": return left ** right;
+      case "+": return bothInt ? addInts(left, right, loc) : left + right;
+      case "-": return bothInt ? subtractInts(left, right, loc) : left - right;
+      case "*": return bothInt ? multiplyInts(left, right, loc) : left * right;
+      case "/": return bothInt ? divideInts(left, right, loc) : divideFloats(left, right, loc);
+      case "%": return bothInt ? moduloInts(left, right, loc) : moduloFloats(left, right, loc);
+      case "**": return bothInt ? powerInts(left, right, loc) : left ** right;
       case ">": return left > right;
       case "<": return left < right;
       case ">=": return left >= right;
@@ -650,7 +778,14 @@ export class Interpreter {
       }
 
       const currentValue = this.evaluate(rightExpr, env);
-      const newValue = op === "++" ? currentValue + 1 : currentValue - 1;
+      // `x++` on an int is int arithmetic, so it follows the same overflow rule as `x + 1`.
+      const isInt = this.typeOf(rightExpr) === "int";
+      let newValue: any;
+      if (op === "++") {
+        newValue = isInt ? addInts(currentValue, 1, rightExpr.loc) : currentValue + 1;
+      } else {
+        newValue = isInt ? subtractInts(currentValue, 1, rightExpr.loc) : currentValue - 1;
+      }
 
       // Mutate the variable or container target in-place
       if (rightExpr.type === "Identifier") {

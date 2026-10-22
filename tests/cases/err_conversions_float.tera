@@ -1,2 +1,2 @@
-// `float` has no values yet, so there is nothing for the conversion to produce.
-print(float("1.5"))
+// `float` reads a plain decimal, so text that is not one stops the program where it is converted.
+print(float("4,5"))

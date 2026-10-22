@@ -1,0 +1,6 @@
+// A float is still a finite double: digits a double cannot hold stop the program too.
+let zeros: "0000000000" + "0000000000" + "0000000000" + "0000000000"
+zeros = zeros + zeros
+zeros = zeros + zeros
+zeros = zeros + zeros
+print(float("1" + zeros))

@@ -44,24 +44,30 @@ function stripParamModifiers(t: string): string {
   return t;
 }
 
+// The two numeric types. They are distinct — an `int` is exact, a `float` is an IEEE double —
+// but they mix in arithmetic, where the result is `float` as soon as either side is one.
+const NUMERIC_TYPES = ["int", "float"];
+
+function isNumericType(type: string): boolean {
+  return NUMERIC_TYPES.includes(type);
+}
+
 // The types `input()` knows how to read a line of text into. They are compared after
 // normalization, so `bool` and `boolean` are the same entry.
-const INPUT_READABLE_TYPES = ["string", "int", "boolean"];
+const INPUT_READABLE_TYPES = ["string", "int", "float", "boolean"];
 
 // Spelling used in diagnostics: the language writes the annotation as `bool`.
-const INPUT_READABLE_TYPES_LABEL = "'int', 'string' or 'bool'";
+const INPUT_READABLE_TYPES_LABEL = "'int', 'float', 'string' or 'bool'";
 
 // Conversions are keyed by the type keyword that spells them, because that is exactly how they
 // are written: `int("42")` is the `int` keyword followed by an argument list. Each one accepts
 // a fixed set of operand types — a conversion is a decision, not a JavaScript-style coercion,
 // so `int(true)` is a type error instead of a guessed 1 — and yields one fixed type.
 const CONVERSIONS: Map<string, { sources: string[]; result: TeraType }> = new Map([
-  ["string", { sources: ["string", "int", "boolean"], result: "string" }],
-  ["int", { sources: ["string", "int"], result: "int" }],
+  ["string", { sources: ["string", "int", "float", "boolean"], result: "string" }],
+  ["int", { sources: ["string", "int", "float"], result: "int" }],
   ["bool", { sources: ["string", "boolean"], result: "boolean" }],
-  // There are no `float` values or literals yet, so `float(x)` has nothing to accept. The entry
-  // exists so the call reaches its own message instead of "Undefined variable 'float'".
-  ["float", { sources: [], result: "float" }],
+  ["float", { sources: ["string", "int", "float"], result: "float" }],
 ]);
 
 // `'string' and 'int'`, `'string', 'int' and 'boolean'` — diagnostics read as a sentence.
@@ -123,6 +129,13 @@ export class TypeChecker {
   // Nesting depth so `break`/`continue` can be validated statically.
   private breakableDepth: number = 0;   // loops + switch
   private continuableDepth: number = 0; // loops only
+  // The type this checker decided for every expression it inferred, published for the
+  // interpreter. `int` and `float` are the same JavaScript number, so the runtime cannot tell
+  // them apart from the value alone: it asks here to know whether to truncate `int / int` and
+  // how to print `3.0`. The interpreter walks the very AST this checker just walked, so the
+  // decision is already made by the time a value exists — recording it costs one map write and
+  // keeps the runtime a faithful executor of the static types instead of a guesser (decision D16).
+  public readonly expressionTypes: WeakMap<ExpressionNode, TeraType> = new WeakMap();
 
   constructor() {
     this.globalEnv = new TypeEnvironment();
@@ -499,6 +512,12 @@ export class TypeChecker {
   }
 
   private inferExpressionType(expr: ExpressionNode, env: TypeEnvironment): TeraType {
+    const type = this.inferExpressionTypeInner(expr, env);
+    this.expressionTypes.set(expr, type);
+    return type;
+  }
+
+  private inferExpressionTypeInner(expr: ExpressionNode, env: TypeEnvironment): TeraType {
     switch (expr.type) {
       case "Literal":
         return this.inferLiteralType(expr);
@@ -702,8 +721,10 @@ export class TypeChecker {
 
   private inferLiteralType(node: LiteralNode): TeraType {
     switch (node.rawType) {
-      case "number":
+      case "int":
         return "int";
+      case "float":
+        return "float";
       case "string":
         return "string";
       case "boolean":
@@ -728,7 +749,11 @@ export class TypeChecker {
     }
 
     if (["+", "-", "*", "/", "%", "**"].includes(node.operator)) {
-      if (leftType === "int" && rightType === "int") return "int";
+      // Two ints stay an int; anything with a float on either side is a float, because the float
+      // is the type that can hold both (`1.5 * 2` is `3.0`, not `3`).
+      if (isNumericType(leftType) && isNumericType(rightType)) {
+        return leftType === "float" || rightType === "float" ? "float" : "int";
+      }
       if (node.operator === "+" && leftType === "string" && rightType === "string") return "string";
       throw new TypeCheckError(
         `Operator '${node.operator}' cannot be applied to types '${leftType}' and '${rightType}'.`,
@@ -737,7 +762,9 @@ export class TypeChecker {
     }
 
     if (["==", "===", "!=", "<", ">", "<=", ">="].includes(node.operator)) {
-      if (leftType !== rightType) {
+      // Comparing an int with a float is fine: `1 < 1.5` asks a numeric question, and the two
+      // types agree on what the numbers are. Everything else must match exactly.
+      if (leftType !== rightType && !(isNumericType(leftType) && isNumericType(rightType))) {
         throw new TypeCheckError(
           `Comparison '${node.operator}' expects matching types, got '${leftType}' and '${rightType}'.`,
           node.loc
@@ -820,13 +847,6 @@ export class TypeChecker {
 
     if (argTypes.length !== 1) {
       throw new TypeCheckError(`'${name}' expects 1 argument(s) but got ${argTypes.length}.`, loc);
-    }
-
-    if (conversion.sources.length === 0) {
-      throw new TypeCheckError(
-        `'${name}' is not supported yet: there are no '${name}' values or literals to convert.`,
-        loc
-      );
     }
 
     const source = argTypes[0]!;

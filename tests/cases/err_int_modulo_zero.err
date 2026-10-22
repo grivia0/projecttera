@@ -1,0 +1,5 @@
+[Runtime Error] Modulo by zero: an int cannot be divided by 0.
+  --> tests/cases/err_int_modulo_zero.tera:2:7
+  |
+2 | print(1 % 0)
+  |       ^

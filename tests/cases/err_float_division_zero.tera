@@ -1,0 +1,2 @@
+// A float divides by zero no better than an int does.
+print(1.0 / 0.0)

@@ -39,7 +39,7 @@ ab
 flag is true
 ```
 
-`npm test` builds the project and then runs the whole suite: 89 programs plus 4 CLI checks.
+`npm test` builds the project and then runs the whole suite: 107 programs plus 4 CLI checks.
 
 ## Requirements
 
@@ -130,6 +130,7 @@ and `main` points at `index.ts`'s output, which *runs* the demo when it is impor
 | `AST.ts` | AST node types, the expression and statement unions |
 | `Parser.ts` | tokens → AST; every node records the position it came from |
 | `TypeChecker.ts` | static analysis: scopes, signatures, and the built-in member tables for `arr[T]` and `string` |
+| `Numeric.ts` | the numeric model: the `int` range and its checked arithmetic, `int`/`float` division, `%` and `**`, and the shortest round-trip text of a float |
 | `Interpreter.ts` | tree-walking evaluator with lexical environments |
 | `Errors.ts` | the error hierarchy, the diagnostic formatter and the exit-code constants |
 | `Runner.ts` | the whole pipeline (lex → parse → check → interpret) behind one call |
@@ -172,7 +173,7 @@ node tests/run.mjs arrays       # only the cases whose name contains "arrays"
 The suite runs every program in `tests/cases/` through the built CLI and compares stdout, stderr
 and the exit code byte for byte against the expectation files stored next to it (`.out`, `.err`,
 `.exit`). Four further checks cover the CLI itself — `--help`, no arguments, a missing file, and
-the `index.ts` example — so `npm test` ends with `93 passed, 0 failed, 93 total`. 56 of the 89
+the `index.ts` example — so `npm test` ends with `111 passed, 0 failed, 111 total`. 69 of the 107
 programs are deliberate failures, which is what keeps the diagnostics pinned down as tightly as
 the behaviour. `tests/README.md` explains the layout and how to add a case.
 
@@ -180,8 +181,16 @@ the behaviour. `tests/README.md` explains the layout and how to add a case.
 
 * `input()` stops the program when the input runs out. There is no way yet to ask for a line that
   may be absent — that arrives with optionals in `1.3.0`.
-* Numeric literals always type as `int`; the `float` annotation cannot be satisfied yet, and
-  `float(x)` is rejected for the same reason: there are no float values to convert.
+* A numeric literal with a fraction (`1.5`, `2.0`) is a `float`; one without a fraction is an `int`.
+  Exponents (`1e3`), `0x`/`0b` forms and `_` separators do not exist yet.
+* An `int` is exact from `-9007199254740991` to `9007199254740991`; a result that leaves that range
+  — from `+`, `-`, `*`, `**`, `++`/`--`, a literal, or `int(x)` — stops the program instead of
+  rounding, and `int / 0`, `int % 0` and an `int` raised to a negative power are errors as well.
+* `float` is the 64-bit binary64 double, so it is approximate: `0.1 + 0.2` prints
+  `0.30000000000000004`. A float prints as the shortest text that reads back as the same value,
+  keeping `.0` when it is whole.
+* There is no implicit conversion between `int` and `float`: `let x: 3 => float` is a type error.
+  Mixed arithmetic promotes to `float`, and the written forms are `int(x)` and `float(x)`.
 * `a[i]` is bounds-checked: an out-of-range read, write or `rm` stops the program with a caret at
   the index. `at`, `first` and `last` follow JavaScript instead — `at(-1)` counts from the end and
   an out-of-bounds `at` yields `undefined`.

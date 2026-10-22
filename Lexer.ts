@@ -1,5 +1,6 @@
 import { type SourceLocation, type Token, TokenType } from "./TokenType.js";
 import { LexerError } from "./Errors.js";
+import { INT_MAX, INT_MIN } from "./Numeric.js";
 
 export class Lexer {
   private source: string;
@@ -178,13 +179,29 @@ export class Lexer {
   private number(): void {
     while (this.isDigit(this.peek())) this.advance();
 
-    // Handle float decimals
+    // A fraction is what makes the literal a float: `1.5` is a different type from `1`. The
+    // token itself stays a plain number — the parser reads the spelling back to decide the
+    // type (see `Parser.primary`) — so `isFloat` is only needed for the range check below.
+    let isFloat = false;
     if (this.peek() === "." && this.isDigit(this.peekNext())) {
+      isFloat = true;
       this.advance(); // Consume '.'
       while (this.isDigit(this.peek())) this.advance();
     }
 
-    const value = parseFloat(this.source.substring(this.start, this.current));
+    const text = this.source.substring(this.start, this.current);
+    const value = parseFloat(text);
+
+    // An int literal has to be exactly representable (decision D13). `parseFloat` would quietly
+    // round 9007199254740993 to 9007199254740992, and a program whose own literals already lie
+    // cannot be made honest later.
+    if (!isFloat && !Number.isSafeInteger(value)) {
+      throw new LexerError(
+        `Integer literal '${text}' is outside the Tera int range (${INT_MIN} to ${INT_MAX}).`,
+        this.location()
+      );
+    }
+
     this.addToken(TokenType.NUMBER, value);
   }
 
