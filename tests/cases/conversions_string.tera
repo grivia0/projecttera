@@ -1,0 +1,6 @@
+// `string` turns a number or a bool into text, which is how a value joins a message.
+let n: 7 => int
+let ready: true => bool
+print(string(n) + " items")
+print(string(ready))
+print(string("already text"))

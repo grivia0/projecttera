@@ -1,0 +1,2 @@
+// `float` has no values yet, so there is nothing for the conversion to produce.
+print(float("1.5"))

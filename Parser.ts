@@ -528,6 +528,20 @@ export class Parser {
     if (this.match(TokenType.UNDEFINED)) {
       return { type: "Literal", value: undefined, rawType: "undefined", loc: this.at(this.previous()) };
     }
+    // A type keyword in expression position is a conversion (`int("42")`), and a conversion is
+    // an ordinary call: the keyword becomes the callee and `call()` picks up the argument list.
+    // Without a `(` there is nothing to convert, so the keyword is reported on its own instead
+    // of turning into an undefined variable later.
+    if (this.match(TokenType.TYPE_INT, TokenType.TYPE_STRING, TokenType.TYPE_BOOL, TokenType.TYPE_FLOAT)) {
+      const token = this.previous();
+      if (!this.check(TokenType.LPAREN)) {
+        throw new ParseError(
+          `'${token.lexeme}' is a type; to convert a value write ${token.lexeme}(...).`,
+          this.at(token)
+        );
+      }
+      return { type: "Identifier", name: token.lexeme, loc: this.at(token) };
+    }
     if (this.match(TokenType.IDENTIFIER)) {
       const token = this.previous();
       return { type: "Identifier", name: token.lexeme, loc: this.at(token) };

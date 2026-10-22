@@ -51,6 +51,26 @@ const INPUT_READABLE_TYPES = ["string", "int", "boolean"];
 // Spelling used in diagnostics: the language writes the annotation as `bool`.
 const INPUT_READABLE_TYPES_LABEL = "'int', 'string' or 'bool'";
 
+// Conversions are keyed by the type keyword that spells them, because that is exactly how they
+// are written: `int("42")` is the `int` keyword followed by an argument list. Each one accepts
+// a fixed set of operand types — a conversion is a decision, not a JavaScript-style coercion,
+// so `int(true)` is a type error instead of a guessed 1 — and yields one fixed type.
+const CONVERSIONS: Map<string, { sources: string[]; result: TeraType }> = new Map([
+  ["string", { sources: ["string", "int", "boolean"], result: "string" }],
+  ["int", { sources: ["string", "int"], result: "int" }],
+  ["bool", { sources: ["string", "boolean"], result: "boolean" }],
+  // There are no `float` values or literals yet, so `float(x)` has nothing to accept. The entry
+  // exists so the call reaches its own message instead of "Undefined variable 'float'".
+  ["float", { sources: [], result: "float" }],
+]);
+
+// `'string' and 'int'`, `'string', 'int' and 'boolean'` — diagnostics read as a sentence.
+function quoteTypes(types: string[]): string {
+  const quoted = types.map((t) => `'${t}'`);
+  if (quoted.length === 1) return quoted[0]!;
+  return `${quoted.slice(0, -1).join(", ")} and ${quoted[quoted.length - 1]}`;
+}
+
 class TypeEnvironment {
   private bindings: Map<string, TeraType> = new Map();
 
@@ -109,6 +129,11 @@ export class TypeChecker {
     // Built-in functions
     this.globalEnv.define("print", "function");
     this.globalEnv.define("input", "function");
+    // The conversions. Their names are type keywords, so a program can never shadow them, and
+    // their arguments are checked against the `CONVERSIONS` table rather than a signature.
+    for (const name of CONVERSIONS.keys()) {
+      this.globalEnv.define(name, "function");
+    }
   }
 
   public check(node: ProgramNode): void {
@@ -659,6 +684,12 @@ export class TypeChecker {
   }
 
   private inferCallExprType(node: CallExprNode, env: TypeEnvironment): TeraType {
+    // Conversions look like calls but are type-directed, so they are checked against their own
+    // table and never reach the signature machinery below.
+    if (node.callee.type === "Identifier" && CONVERSIONS.has(node.callee.name)) {
+      return this.checkConversion(node.callee.name, node.arguments, node.loc, env);
+    }
+
     // Member calls resolve against the receiver's member table first, so every built-in
     // method is checked against its own signature before the call is accepted.
     if (node.callee.type === "MemberExpr") {
@@ -689,6 +720,39 @@ export class TypeChecker {
 
     // `print` accepts any number of arguments and returns nothing.
     return "undefined";
+  }
+
+  // `string(x)`, `int(x)`, `bool(x)`: exactly one argument, of a type the conversion accepts.
+  // The result type is fixed, so `int("42") + 1` type checks without an annotation.
+  private checkConversion(
+    name: string,
+    args: ExpressionNode[],
+    loc: SourceLocation,
+    env: TypeEnvironment
+  ): TeraType {
+    const conversion = CONVERSIONS.get(name)!;
+    const argTypes = args.map((arg) => this.inferExpressionType(arg, env));
+
+    if (argTypes.length !== 1) {
+      throw new TypeCheckError(`'${name}' expects 1 argument(s) but got ${argTypes.length}.`, loc);
+    }
+
+    if (conversion.sources.length === 0) {
+      throw new TypeCheckError(
+        `'${name}' is not supported yet: there are no '${name}' values or literals to convert.`,
+        loc
+      );
+    }
+
+    const source = argTypes[0]!;
+    if (!conversion.sources.includes(source)) {
+      throw new TypeCheckError(
+        `'${name}' cannot convert a value of type '${source}'. It converts ${quoteTypes(conversion.sources)}.`,
+        loc
+      );
+    }
+
+    return conversion.result;
   }
 
   private inferArrayLiteralType(node: ArrayLiteralNode, env: TypeEnvironment): TeraType {

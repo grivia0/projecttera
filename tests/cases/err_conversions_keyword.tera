@@ -1,0 +1,2 @@
+// A type keyword on its own is not a value; the argument list is what makes it a conversion.
+print(int)

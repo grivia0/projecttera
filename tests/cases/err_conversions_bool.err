@@ -1,0 +1,5 @@
+[Runtime Error] Cannot convert 'maybe' to a bool (expected 'true' or 'false').
+  --> tests/cases/err_conversions_bool.tera:2:11
+  |
+2 | print(bool("maybe"))
+  |           ^

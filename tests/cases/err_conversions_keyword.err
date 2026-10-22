@@ -1,0 +1,5 @@
+[Parser Error] 'int' is a type; to convert a value write int(...).
+  --> tests/cases/err_conversions_keyword.tera:2:7
+  |
+2 | print(int)
+  |       ^

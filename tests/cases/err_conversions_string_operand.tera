@@ -1,0 +1,2 @@
+// `string` converts scalars; a collection has no agreed text form yet, so this is refused.
+print(string([1, 2]))

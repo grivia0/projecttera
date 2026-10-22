@@ -1,0 +1,5 @@
+[Type Error] 'float' is not supported yet: there are no 'float' values or literals to convert.
+  --> tests/cases/err_conversions_float.tera:2:12
+  |
+2 | print(float("1.5"))
+  |            ^

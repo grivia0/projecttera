@@ -1,0 +1,2 @@
+// A Tera int is exact, so a run of digits too long for one is refused rather than rounded.
+print(int("99999999999999999999"))

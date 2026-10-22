@@ -1,0 +1,2 @@
+// Text that is not a whole number stops the program where it is converted.
+print(int("abc"))

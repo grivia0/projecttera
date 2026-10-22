@@ -1,0 +1,5 @@
+// `int` reads the digits out of text and passes an int through unchanged.
+print(int("42") + 1)
+print(int("  -7  "))
+print(int("007"))
+print(int(5) * 2)

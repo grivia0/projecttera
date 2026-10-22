@@ -1,0 +1,5 @@
+// `bool` reads 'true' or 'false' in any casing and passes a bool through unchanged.
+print(bool("true"))
+print(bool("FALSE"))
+print(bool(" True "))
+print(!bool(false))

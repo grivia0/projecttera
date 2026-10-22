@@ -89,29 +89,59 @@ function normalizeAnnotationType(t: string): string {
   return t === "bool" ? "boolean" : t;
 }
 
+// The wording of a failed text-to-value conversion: `input()` *reads* a line *as* a type, the
+// conversion functions *convert* a value *to* a type. Only the verb and the preposition differ;
+// the accepted text is identical, and both go through the helpers below so it stays that way.
+type TextWording = { verb: "read" | "convert"; preposition: "as" | "to" };
+
+const READ_TEXT: TextWording = { verb: "read", preposition: "as" };
+const CONVERT_TEXT: TextWording = { verb: "convert", preposition: "to" };
+
+// ` 42 ` converts because the spaces around a number are what a prompt leaves behind; `4 2`
+// and `4.5` do not. The digits also have to fit in a Tera int exactly, so a longer run fails
+// instead of silently rounding — the whole point of `int(...)` is that the answer is true.
+function parseIntText(text: string, wording: TextWording, loc?: SourceLocation): number {
+  const trimmed = text.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) {
+    throw new RuntimeError(`Cannot ${wording.verb} '${trimmed}' ${wording.preposition} an int.`, loc);
+  }
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value)) {
+    throw new RuntimeError(
+      `Cannot ${wording.verb} '${trimmed}' ${wording.preposition} an int: it does not fit in a Tera int.`,
+      loc
+    );
+  }
+  return value;
+}
+
+// `true`/`false` in any casing, which is the same rule `input() => bool` follows.
+function parseBoolText(text: string, wording: TextWording, loc?: SourceLocation): boolean {
+  const trimmed = text.trim();
+  const lowered = trimmed.toLowerCase();
+  if (lowered !== "true" && lowered !== "false") {
+    throw new RuntimeError(
+      `Cannot ${wording.verb} '${trimmed}' ${wording.preposition} a bool (expected 'true' or 'false').`,
+      loc
+    );
+  }
+  return lowered === "true";
+}
+
 // Reads a line of text as `declaredType`, stopping the program when the text does not fit
 // (`abc` as an int, `maybe` as a bool). The line itself arrives verbatim from `input`, so a
 // plain string keeps its spaces; a number or a bool ignores the spaces around it, because
 // ` 42 ` is what someone types when a prompt asks for a number.
 function readLineAs(line: any, declaredType: string, loc: SourceLocation): any {
   const text = String(line);
-  const trimmed = text.trim();
 
   switch (normalizeAnnotationType(declaredType)) {
     case "string":
       return text;
     case "int":
-      if (!/^[+-]?\d+$/.test(trimmed)) {
-        throw new RuntimeError(`Cannot read '${trimmed}' as an int.`, loc);
-      }
-      return parseInt(trimmed, 10);
-    case "boolean": {
-      const lowered = trimmed.toLowerCase();
-      if (lowered !== "true" && lowered !== "false") {
-        throw new RuntimeError(`Cannot read '${trimmed}' as a bool (expected 'true' or 'false').`, loc);
-      }
-      return lowered === "true";
-    }
+      return parseIntText(text, READ_TEXT, loc);
+    case "boolean":
+      return parseBoolText(text, READ_TEXT, loc);
     default:
       // Unreachable: the type checker reports this annotation before the program runs.
       throw new RuntimeError(
@@ -178,6 +208,18 @@ export class Interpreter {
       }
       return line;
     });
+
+    // Conversions: `string(x)`, `int(x)`, `bool(x)`. The checker has already limited the operand
+    // to the types each one accepts, so a value that is already of the target type passes
+    // straight through and everything else is text to be parsed. `float(...)` has no entry:
+    // there are no float values yet, and the checker rejects the call before this point.
+    this.globalEnv.define("string", (value: any) => String(value));
+    this.globalEnv.define("int", (value: any) =>
+      typeof value === "number" ? value : parseIntText(String(value), CONVERT_TEXT)
+    );
+    this.globalEnv.define("bool", (value: any) =>
+      typeof value === "boolean" ? value : parseBoolText(String(value), CONVERT_TEXT)
+    );
   }
 
   public interpret(program: ProgramNode): void {

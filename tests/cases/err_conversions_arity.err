@@ -1,0 +1,5 @@
+[Type Error] 'int' expects 1 argument(s) but got 2.
+  --> tests/cases/err_conversions_arity.tera:2:10
+  |
+2 | print(int("1", "2"))
+  |          ^

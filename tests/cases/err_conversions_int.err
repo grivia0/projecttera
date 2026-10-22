@@ -1,0 +1,5 @@
+[Runtime Error] Cannot convert 'abc' to an int.
+  --> tests/cases/err_conversions_int.tera:2:10
+  |
+2 | print(int("abc"))
+  |          ^

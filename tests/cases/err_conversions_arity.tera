@@ -1,0 +1,2 @@
+// A conversion takes exactly one value.
+print(int("1", "2"))

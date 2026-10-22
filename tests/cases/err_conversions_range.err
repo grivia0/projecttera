@@ -1,0 +1,5 @@
+[Runtime Error] Cannot convert '99999999999999999999' to an int: it does not fit in a Tera int.
+  --> tests/cases/err_conversions_range.tera:2:10
+  |
+2 | print(int("99999999999999999999"))
+  |          ^

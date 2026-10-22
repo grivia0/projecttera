@@ -1,0 +1,4 @@
+// Text and numbers combine: the line is read as an int, then printed as part of a message.
+let n: input("n> ") => int
+print("n=" + string(n))
+print("twice=" + string(n * 2))

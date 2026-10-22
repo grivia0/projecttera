@@ -45,7 +45,7 @@ a version bump and release notes for one or two members, with no wiki benefit.
 | `1.5.0` | Programs | `import` and multi-file projects, project manifest, standard library (strings, arrays, math, io, json, time) | 1 new, 5–6 new reference pages | ~3.5 weeks |
 | `1.6.0` | Tooling & depth | REPL, `tera fmt`, `tera test`, LSP, explicit-stack VM (deep recursion), spec, CI | 2 new | ongoing |
 
-Suite size targets: 71 → ~90 → ~105 → ~120 → ~130 → ~150 (the library release adds table-driven
+Suite size targets: 82 → ~100 → ~115 → ~130 → ~140 → ~160 (the library release adds table-driven
 member tests rather than one program per member).
 
 ## 1.1.0 — Foundation
@@ -67,7 +67,8 @@ why it goes first and alone.
   and turn it into `string?`).
 * String escapes (`\n`, `\t`, `\"`, `\\`, `\u{...}`) and a raw-string form. The unused `BACKTICK`
   token is either wired to interpolation or deleted.
-* Conversions: `string(x)`, `int(s)`, `float(s)`, `bool(s)`.
+* Conversions: `string(x)`, `int(s)`, `float(s)`, `bool(s)`. `string`, `int` and `bool` have
+  landed; `float(s)` waits for the numeric model, because it has no values to produce yet.
 * Empty collections: `let a: [] => arr[int]` is accepted; `[]` adopts the annotation's element type.
 * Compound assignment: `+=`, `-=`, `*=`, `/=`, `%=`.
 * `const` declarations.
@@ -88,9 +89,16 @@ work, and `length`/`remove`/`concat`/`toString` are the only spellings.
 
 **Already landed on `main`, ahead of the release:** the `input()` line reader (`Stdin.ts`) — one
 line per call, CRLF accepted, no length cap, spaces preserved, end-of-input a runtime error with
-a caret at the call. Ten new cases (`input_lines`, `input_whitespace`, `input_typed_whitespace`,
-`input_empty_line`, `input_no_newline`, `input_crlf`, `input_long_line`, `input_utf8`,
-`input_utf8_boundary`, `err_input_eof`) pin it; the suite is `71 passed`.
+a caret at the call; and the conversions `string(x)`, `int(x)`, `bool(x)`, which accept a fixed
+set of operand types and reject the rest at check time (`int(true)` does not compile) and stop on
+text they cannot read (`int("abc")`, `int("4.5")`, a number too large for an exact `int`). A type
+keyword in expression position is the conversion, so `print(int)` is a parse error. Twenty-two new
+cases (`input_lines`, `input_whitespace`, `input_typed_whitespace`, `input_empty_line`,
+`input_no_newline`, `input_crlf`, `input_long_line`, `input_utf8`, `input_utf8_boundary`,
+`err_input_eof`, `conversions_string`, `conversions_int`, `conversions_bool`, `conversions_input`,
+`err_conversions_int`, `err_conversions_bool`, `err_conversions_operand`,
+`err_conversions_string_operand`, `err_conversions_arity`, `err_conversions_range`,
+`err_conversions_float`, `err_conversions_keyword`) pin it; the suite is `83 passed`.
 
 **Wiki:** Variables, Types, Operators, Strings, Arrays (full rewrite of the examples), plus a new
 Conversions section. One page for `input()` behaviour.

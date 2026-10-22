@@ -32,6 +32,24 @@ no limit on the line length. Reading as `int` or `bool` ignores spaces around th
 empty line and the end of the input are different answers: the first reads as an empty string,
 the second stops the program.
 
+## Conversions
+
+`string(x)`, `int(x)` and `bool(x)` turn one value into the named type, which is what lets a
+number join a message (`"n=" + string(n)`) or a line of text become a number (`int(raw) + 1`)
+without an annotation. They are deliberate, not JavaScript-style coercions: the operand types
+are fixed, so `int(true)` is a type error rather than a guessed `1`.
+
+| Call        | Accepts                  | Produces                            |
+| ----------- | ------------------------ | ----------------------------------- |
+| `string(x)` | `string`, `int`, `bool`  | the value as text                   |
+| `int(x)`    | `string`, `int`          | the whole number the text spells    |
+| `bool(x)`   | `string`, `bool`         | `true` or `false`                   |
+
+`int(" 42 ")` and `bool(" TRUE ")` ignore the spaces around the value, exactly like a line read
+into those types; `int("4.5")`, `int("abc")`, `bool("maybe")` and a run of digits too long to be
+held exactly all stop the program where the conversion is written. `float(x)` is rejected until
+floats exist. The keyword on its own is not a value: `print(int)` is a parse error that says so.
+
 ## Running
 
 ```bash
